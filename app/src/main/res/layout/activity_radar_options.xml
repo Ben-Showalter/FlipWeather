@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_primary">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="10dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/accent"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:text="Radar Options" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:textColor="@color/accent_warm"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:text="Controls" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="4dp"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp"
+            android:lineSpacingExtra="4dp"
+            android:text="D-pad Left/Right - pan west/east\nD-pad Up/Down - pan north/south\n* / # - zoom out / in\n5 - re-center on your location\n0 - refresh radar tiles" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:textColor="@color/accent_warm"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:text="Color Codes" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="4dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
+            android:text="Reflectivity intensity (NEXRAD dBZ scale):" />
+
+        <LinearLayout
+            android:id="@+id/colorCodesContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingTop="6dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@color/footer_bg"
+            android:padding="6dp"
+            android:textColor="@color/footer_text"
+            android:textSize="13sp"
+            android:text="Back=Return to Radar" />
+
+    </LinearLayout>
+</ScrollView>

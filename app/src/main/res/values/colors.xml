@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg_primary">#1A1410</color>
+    <color name="bg_row_alt">#241C15</color>
+    <color name="divider">#3D2E1F</color>
+    <color name="accent">#FF7A1A</color>
+    <color name="accent_warm">#FFB347</color>
+    <color name="text_primary">#F5EEE6</color>
+    <color name="text_secondary">#B0A08E</color>
+    <color name="footer_bg">#241C15</color>
+    <color name="footer_text">#8A7A67</color>
+    <color name="row_focus_bg">#4A2E12</color>
+    <color name="button_bg">#FF7A1A</color>
+    <color name="button_bg_pressed">#CC5F11</color>
+    <color name="button_text">#1A1410</color>
+</resources>

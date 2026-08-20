@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/bg_primary">
+
+    <TextView
+        android:id="@+id/hourlyHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="8dp"
+        android:textColor="@color/accent"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:text="Hourly" />
+
+    <ListView
+        android:id="@+id/hourlyList"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp"
+        android:divider="@android:color/transparent"
+        android:dividerHeight="8dp"
+        android:listSelector="@drawable/list_row_selector"
+        android:drawSelectorOnTop="true" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="4dp"
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp"
+        android:text="Left: Current   Center: Daily   Right: Radar" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@color/footer_bg"
+        android:padding="6dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/accent"
+            android:textStyle="bold"
+            android:textSize="13sp"
+            android:text="Refresh" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:textColor="@color/footer_text"
+            android:textSize="13sp"
+            android:text="Back=Return" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/accent"
+            android:textStyle="bold"
+            android:textSize="13sp"
+            android:text="Options" />
+
+    </LinearLayout>
+
+</LinearLayout>

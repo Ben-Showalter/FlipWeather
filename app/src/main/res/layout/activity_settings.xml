@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/bg_primary">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="8dp"
+        android:textColor="@color/accent"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:text="Settings" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="10dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/accent"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:text="Location" />
+
+        <TextView
+            android:id="@+id/currentLocationText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="7dp"
+            android:paddingBottom="14dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            android:text="Not set" />
+
+        <Button
+            android:id="@+id/searchTownButton"
+            style="@style/FlipButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Search for a Town" />
+
+        <Button
+            android:id="@+id/useGpsButton"
+            style="@style/FlipButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="Use GPS Location" />
+
+        <TextView
+            android:id="@+id/settingsStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="10dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="14dp"
+            android:layout_marginBottom="14dp"
+            android:background="@color/divider" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/accent"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:text="Radar" />
+
+        <Button
+            android:id="@+id/radarLegendButton"
+            style="@style/FlipButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="Radar Color Legend" />
+
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingBottom="4dp"
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp"
+        android:text="Left: Current   Center: Daily   Right: Radar" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/footer_bg"
+        android:padding="6dp"
+        android:textColor="@color/footer_text"
+        android:textSize="13sp"
+        android:text="Back=Return" />
+
+</LinearLayout>

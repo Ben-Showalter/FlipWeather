@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <uses-feature
+        android:name="android.hardware.location.gps"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.touchscreen"
+        android:required="false" />
+
+    <application
+        android:allowBackup="true"
+        android:label="@string/app_name"
+        android:icon="@drawable/ic_partly_cloudy"
+        android:theme="@style/AppTheme">
+
+        <activity
+            android:name=".CurrentActivity"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".TownSearchActivity"
+            android:exported="false"
+            android:label="Search Town" />
+
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:label="Settings" />
+
+        <activity
+            android:name=".DailyForecastActivity"
+            android:exported="false"
+            android:label="Daily Forecast" />
+
+        <activity
+            android:name=".HourlyActivity"
+            android:exported="false"
+            android:label="Hourly" />
+
+        <activity
+            android:name=".RadarActivity"
+            android:exported="false"
+            android:label="Radar" />
+
+        <activity
+            android:name=".RadarOptionsActivity"
+            android:exported="false"
+            android:label="Radar Options" />
+
+    </application>
+</manifest>

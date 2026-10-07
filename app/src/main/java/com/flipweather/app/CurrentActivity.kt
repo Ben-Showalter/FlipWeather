@@ -28,21 +28,29 @@ class CurrentActivity : FlipBaseActivity() {
         currentDesc = findViewById(R.id.currentDesc)
         currentDetails = findViewById(R.id.currentDetails)
         statusText = findViewById(R.id.statusText)
+        updateBar = UpdateBar(this)
+    }
+
+    override val autoRefreshIntervalMs: Long? = RefreshThrottle.CURRENT_MIN_MS
+
+    override fun dataFetchedAt(): Long? = Prefs.getCachedCurrentAt(this)
+
+    override fun startAutoFetch() {
+        RefreshThrottle.markRefreshed(this, "current")
+        fetchFresh()
     }
 
     override fun onResume() {
         super.onResume()
         // Reopening this screen shows whatever was last downloaded,
-        // instantly - no network call just from navigating back to it.
-        // Left softkey (onRefreshKey) is the only thing that re-fetches.
-        if (!showFromCache()) {
-            // Nothing cached yet (first launch, or location just changed) -
-            // there's nothing else to show, so fetch once automatically.
-            fetchFresh()
-        }
+        // instantly, then auto-updates in the background if it's due.
+        showFromCache()
+        updateBar?.setUpdatedAt(dataFetchedAt())
+        maybeAutoRefresh()
     }
 
     override fun onRefreshKey() {
+        if (isFetching) return
         if (!RefreshThrottle.canRefresh(this, "current", RefreshThrottle.CURRENT_MIN_MS)) {
             statusText.text = RefreshThrottle.waitMessage(this, "current", RefreshThrottle.CURRENT_MIN_MS)
             return
@@ -72,7 +80,7 @@ class CurrentActivity : FlipBaseActivity() {
             currentTemp.text = if (json.has("temp")) "${json.getInt("temp")}°F" else "--°"
             currentDesc.text = json.optString("desc", "")
             currentDetails.text = json.optString("details", "")
-            statusText.text = "${json.optString("station", "")} · as of ${json.optString("time", "")} (cached)"
+            statusText.text = "${json.optString("station", "")} · as of ${json.optString("time", "")}"
 
             val iconUrl = json.optString("iconUrl", "")
             if (iconUrl.isNotBlank()) {
@@ -88,8 +96,9 @@ class CurrentActivity : FlipBaseActivity() {
 
     private fun fetchFresh() {
         if (!Prefs.hasLocation(this)) return
+        if (!beginFetch()) return
         val (lat, lon) = Prefs.getLatLon(this)!!
-        statusText.text = "Loading current conditions..."
+        if (Prefs.getCachedCurrentJson(this) == null) statusText.text = "Loading current conditions..."
 
         lifecycleScope.launch {
             try {
@@ -144,8 +153,10 @@ class CurrentActivity : FlipBaseActivity() {
                     put("iconUrl", obs.iconUrl)
                 }
                 Prefs.setCachedCurrentJson(this@CurrentActivity, cacheJson.toString())
+                endFetch(System.currentTimeMillis())
             } catch (e: Exception) {
-                statusText.text = "Couldn't load conditions: ${e.message ?: "network error"}"
+                statusText.text = "Couldn't update conditions: ${e.message ?: "network error"}"
+                endFetch(null)
             }
         }
     }

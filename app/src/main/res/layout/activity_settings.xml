@@ -14,6 +14,11 @@
         android:textStyle="bold"
         android:text="Settings" />
 
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -84,7 +89,31 @@
             android:layout_marginTop="10dp"
             android:text="Radar Color Legend" />
 
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="14dp"
+            android:layout_marginBottom="14dp"
+            android:background="@color/divider" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/accent"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:text="Weather Service" />
+
+        <Button
+            android:id="@+id/discussionButton"
+            style="@style/FlipButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="NWS Forecast Discussion" />
+
     </LinearLayout>
+    </ScrollView>
 
     <TextView
         android:layout_width="match_parent"

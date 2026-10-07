@@ -1,6 +1,8 @@
 package com.flipweather.app
 
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.view.KeyEvent
 import android.widget.EditText
 import androidx.appcompat.app.AppCompatActivity
@@ -41,6 +43,12 @@ import androidx.appcompat.app.AppCompatActivity
  * Town Search, Settings) - except on Radar, which overrides it to
  * return to Daily instead of falling out of the app (see
  * RadarActivity.onBackPressed).
+ *
+ * Data screens (Current, Daily, Hourly, Discussion) also auto-update:
+ * they show their cache instantly on resume, then [maybeAutoRefresh]
+ * fetches in the background whenever that cache is older than
+ * [autoRefreshIntervalMs] - checked again every minute while the
+ * screen stays open. Progress and freshness show in [updateBar].
  */
 abstract class FlipBaseActivity : AppCompatActivity() {
 
@@ -57,6 +65,69 @@ abstract class FlipBaseActivity : AppCompatActivity() {
 
     /** Override to perform this screen's actual refresh (network fetch). */
     open fun onRefreshKey() {}
+
+    // --- Auto-refresh (see class doc) ---
+
+    /** How old this screen's data may get before auto-refreshing; null = never. */
+    protected open val autoRefreshIntervalMs: Long? = null
+
+    /** When the data currently on screen was fetched; null = nothing cached. */
+    protected open fun dataFetchedAt(): Long? = null
+
+    /** Start a background fetch, bracketed by [beginFetch] / [endFetch]. */
+    protected open fun startAutoFetch() {}
+
+    protected var updateBar: UpdateBar? = null
+    protected var isFetching = false
+        private set
+
+    // In-memory only, so a failing fetch (no signal) is retried once per
+    // interval rather than on every one-minute tick.
+    private var lastAutoAttemptMs = 0L
+    private val tickHandler = Handler(Looper.getMainLooper())
+    private val tick = object : Runnable {
+        override fun run() {
+            maybeAutoRefresh()
+            tickHandler.postDelayed(this, 60_000L)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (autoRefreshIntervalMs != null) tickHandler.postDelayed(tick, 60_000L)
+    }
+
+    override fun onPause() {
+        tickHandler.removeCallbacks(tick)
+        super.onPause()
+    }
+
+    /** Recolors the update bar, and kicks off a fetch if the data is due. */
+    protected fun maybeAutoRefresh() {
+        updateBar?.refreshColor()
+        val interval = autoRefreshIntervalMs ?: return
+        if (isFetching || !Prefs.hasLocation(this)) return
+        val now = System.currentTimeMillis()
+        if (now - (dataFetchedAt() ?: 0L) < interval) return
+        if (now - lastAutoAttemptMs < interval) return
+        lastAutoAttemptMs = now
+        startAutoFetch()
+    }
+
+    /** Returns false (and does nothing) if a fetch is already running. */
+    protected fun beginFetch(): Boolean {
+        if (isFetching) return false
+        isFetching = true
+        updateBar?.setUpdating(true)
+        return true
+    }
+
+    /** [fetchedAt] is the new data's fetch time on success, null on failure. */
+    protected fun endFetch(fetchedAt: Long?) {
+        isFetching = false
+        updateBar?.setUpdating(false)
+        if (fetchedAt != null) updateBar?.setUpdatedAt(fetchedAt) else updateBar?.refreshColor()
+    }
 
     private var pendingLocationHelper: LocationHelper? = null
 

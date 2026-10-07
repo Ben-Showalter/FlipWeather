@@ -28,6 +28,10 @@ class SettingsActivity : FlipBaseActivity() {
             startActivity(Intent(this, RadarOptionsActivity::class.java))
         }
 
+        findViewById<Button>(R.id.discussionButton).setOnClickListener {
+            startActivity(Intent(this, DiscussionActivity::class.java))
+        }
+
         findViewById<Button>(R.id.useGpsButton).setOnClickListener {
             settingsStatus.text = "Getting GPS fix..."
             locationHelper.requestLocation(

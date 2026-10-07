@@ -25,6 +25,11 @@ object Prefs {
     private const val KEY_LAST_REFRESH_PREFIX = "last_refresh_"
     private const val KEY_CACHED_CURRENT = "cached_current_json"
     private const val KEY_CACHED_DAILY = "cached_daily_json"
+    private const val KEY_CACHED_HOURLY = "cached_hourly_json"
+    private const val KEY_CACHED_AFD = "cached_afd_json"
+    // When each cache above was written - drives the "Updated h:mm" bar
+    // and auto-refresh (see FlipBaseActivity.maybeAutoRefresh).
+    private const val KEY_CACHED_AT_SUFFIX = "_at"
 
     private fun prefs(ctx: Context) =
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
@@ -55,6 +60,8 @@ object Prefs {
             .remove(KEY_OBS_STATION_ID)
             .remove(KEY_CACHED_CURRENT)
             .remove(KEY_CACHED_DAILY)
+            .remove(KEY_CACHED_HOURLY)
+            .remove(KEY_CACHED_AFD)
             .apply()
         OpenMeteoCache.clear()
     }
@@ -121,14 +128,34 @@ object Prefs {
     //     successful fetch instantly instead of a blank/loading screen. ---
 
     fun getCachedCurrentJson(ctx: Context): String? = prefs(ctx).getString(KEY_CACHED_CURRENT, null)
-
-    fun setCachedCurrentJson(ctx: Context, json: String) {
-        prefs(ctx).edit().putString(KEY_CACHED_CURRENT, json).apply()
-    }
+    fun getCachedCurrentAt(ctx: Context): Long? = cachedAt(ctx, KEY_CACHED_CURRENT)
+    fun setCachedCurrentJson(ctx: Context, json: String) = putCache(ctx, KEY_CACHED_CURRENT, json)
 
     fun getCachedDailyJson(ctx: Context): String? = prefs(ctx).getString(KEY_CACHED_DAILY, null)
+    fun getCachedDailyAt(ctx: Context): Long? = cachedAt(ctx, KEY_CACHED_DAILY)
+    fun setCachedDailyJson(ctx: Context, json: String) = putCache(ctx, KEY_CACHED_DAILY, json)
 
-    fun setCachedDailyJson(ctx: Context, json: String) {
-        prefs(ctx).edit().putString(KEY_CACHED_DAILY, json).apply()
+    /** Every hour across all forecast days (not just one date) - see HourlyActivity. */
+    fun getCachedHourlyJson(ctx: Context): String? = prefs(ctx).getString(KEY_CACHED_HOURLY, null)
+    fun getCachedHourlyAt(ctx: Context): Long? = cachedAt(ctx, KEY_CACHED_HOURLY)
+    fun setCachedHourlyJson(ctx: Context, json: String) = putCache(ctx, KEY_CACHED_HOURLY, json)
+
+    /** Latest NWS Area Forecast Discussion - see DiscussionActivity. */
+    fun getCachedAfdJson(ctx: Context): String? = prefs(ctx).getString(KEY_CACHED_AFD, null)
+    fun getCachedAfdAt(ctx: Context): Long? = cachedAt(ctx, KEY_CACHED_AFD)
+    fun setCachedAfdJson(ctx: Context, json: String) = putCache(ctx, KEY_CACHED_AFD, json)
+
+    private fun putCache(ctx: Context, key: String, json: String) {
+        prefs(ctx).edit()
+            .putString(key, json)
+            .putLong(key + KEY_CACHED_AT_SUFFIX, System.currentTimeMillis())
+            .apply()
+    }
+
+    /** Null when that cache is missing, or predates fetch-time tracking. */
+    private fun cachedAt(ctx: Context, key: String): Long? {
+        val p = prefs(ctx)
+        if (!p.contains(key)) return null
+        return p.getLong(key + KEY_CACHED_AT_SUFFIX, 0L).takeIf { it > 0L }
     }
 }

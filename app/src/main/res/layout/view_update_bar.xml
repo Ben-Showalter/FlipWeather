@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Updated h:mm" strip shown at the very top of every data screen -
+     see UpdateBar. Digits go green when fresh, red once older than
+     20 min; the arrow spins only while a fetch is in flight. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/updateBar"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@color/footer_bg"
+    android:paddingStart="8dp"
+    android:paddingEnd="8dp"
+    android:paddingTop="2dp"
+    android:paddingBottom="2dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/text_secondary"
+        android:textSize="13sp"
+        android:text="Updated " />
+
+    <TextView
+        android:id="@+id/updateTime"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/status_stale"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:text="--:--" />
+
+    <ImageView
+        android:id="@+id/updateSpinner"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:layout_marginStart="6dp"
+        android:src="@drawable/ic_refresh"
+        android:visibility="gone"
+        android:contentDescription="Updating" />
+
+</LinearLayout>

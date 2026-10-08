@@ -9,37 +9,19 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import org.maplibre.android.MapLibre
-import org.maplibre.android.camera.CameraPosition
-import org.maplibre.android.camera.CameraUpdateFactory
-import org.maplibre.android.geometry.LatLng
-import org.maplibre.android.maps.MapView
-import org.maplibre.android.maps.MapLibreMap
-import org.maplibre.android.maps.Style
-import org.maplibre.android.style.layers.PropertyFactory
-import org.maplibre.android.style.layers.RasterLayer
-import org.maplibre.android.style.sources.RasterSource
-import org.maplibre.android.style.sources.TileSet
 
 /**
- * Pannable, zoomable, ANIMATED radar using MapLibre (rendering) + a
- * NOAA-sourced NEXRAD composite reflectivity mosaic served as plain XYZ
- * tiles by the Iowa Environmental Mesonet (mesonet.agron.iastate.edu) -
- * free, no key.
+ * Pannable, zoomable, ANIMATED radar: a NOAA-sourced NEXRAD composite
+ * reflectivity mosaic served as plain XYZ tiles by the Iowa
+ * Environmental Mesonet (mesonet.agron.iastate.edu) - free, no key -
+ * drawn over a raster base map by [RadarMapView], a plain-Canvas tile
+ * view (no OpenGL - MapLibre's GL renderer crashed on the E4610).
  *
  * Animation approach: IEM's tile service accepts a time-offset suffix
- * on the same URL template we already use (e.g. "900913-m15m" = 15
- * minutes ago, "900913" = now) - see FRAME_OFFSETS. Rather than
- * swapping one layer's tiles per frame (which would mean removing and
- * re-adding a source every tick - a visible flicker/reload each time),
- * all frames are added as separate raster sources/layers UP FRONT, all
- * stacked on the base map, and the animation just flips each frame
- * layer's raster-opacity between 0 and 1 on a timer. That keeps every
- * tick to a cheap paint-property change on the radar layers only - the
- * base map underneath (OpenFreeMap "Liberty" - streets, labels, etc.)
- * is loaded once and never touched again.
- *
- * Base map: OpenFreeMap's "Liberty" style (free, no key, unlimited use).
+ * on the same URL template (e.g. "900913-m15m" = 15 minutes ago,
+ * "900913" = now) - see FRAME_OFFSETS. RadarMapView fetches every
+ * frame's tiles up front, so each animation tick is just a redraw
+ * from its tile cache with a different frame on top of the base map.
  *
  * D-pad CENTER is claimed app-wide for switching to Daily (see
  * FlipBaseActivity), but on this screen it's repurposed to play/stop
@@ -66,10 +48,8 @@ import org.maplibre.android.style.sources.TileSet
 class RadarActivity : FlipBaseActivity() {
 
     companion object {
-        private const val BASE_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"
-        private const val DEFAULT_ZOOM = 7.0
+        private const val DEFAULT_ZOOM = 7
         private const val PAN_FRACTION = 0.175 // fraction of screen dimension per key press
-        private const val ZOOM_STEP = 0.5 // zoom level change per */# key press
 
         // Oldest to newest - "" means the current/latest frame. 5-minute
         // steps back to 30 minutes ago, matching IEM's own suffix format
@@ -80,21 +60,16 @@ class RadarActivity : FlipBaseActivity() {
         private const val PAUSE_ON_LATEST_MS = 1500L // brief hold on "Now" before looping
     }
 
-    private lateinit var mapView: MapView
+    private lateinit var mapView: RadarMapView
     private lateinit var status: TextView
     private lateinit var sliderTrack: View
     private lateinit var sliderThumb: View
-    private var mapLibreMap: MapLibreMap? = null
-    private var homeLatLng: LatLng? = null
 
-    private val frameSourceIds = mutableListOf<String>()
-    private val frameLayerIds = mutableListOf<String>()
     private var currentFrameIndex = 0
     private var isPlaying = false
     private var animationJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        MapLibre.getInstance(this)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_radar)
 
@@ -102,7 +77,6 @@ class RadarActivity : FlipBaseActivity() {
         sliderTrack = findViewById(R.id.radarSliderTrack)
         sliderThumb = findViewById(R.id.radarSliderThumb)
         mapView = findViewById(R.id.mapView)
-        mapView.onCreate(savedInstanceState)
 
         if (!Prefs.hasLocation(this)) {
             status.text = "No location set - go to Daily then Settings to set one"
@@ -110,8 +84,13 @@ class RadarActivity : FlipBaseActivity() {
         }
 
         val (lat, lon) = Prefs.getLatLon(this)!!
-        homeLatLng = LatLng(lat, lon)
-        loadTiles()
+        mapView.setHome(lat, lon)
+        mapView.recenter(DEFAULT_ZOOM)
+        mapView.radarUrlTemplates = FRAME_OFFSETS.map { tileUrlForOffset(it) }
+        currentFrameIndex = FRAME_OFFSETS.lastIndex
+        mapView.frameIndex = currentFrameIndex
+        status.text = "OK=Play/Stop"
+        updateSlider() // start stopped on "Now" - animation begins only once OK is pressed
     }
 
     override fun onRefreshKey() {
@@ -121,73 +100,13 @@ class RadarActivity : FlipBaseActivity() {
         }
         RefreshThrottle.markRefreshed(this, "radar")
         refreshLocationIfGpsThenRun {
-            Prefs.getLatLon(this)?.let { (lat, lon) -> homeLatLng = LatLng(lat, lon) }
-            val map = mapLibreMap
-            if (map == null) {
-                loadTiles()
-                return@refreshLocationIfGpsThenRun
-            }
-            recenter(map)
-            // Rebuild the frame layers so the offsets re-resolve against
-            // the current time - refresh is the only thing that touches
-            // the base map's camera; the frame rebuild itself only adds/
-            // removes the radar layers, not the base map style.
-            map.style?.let { style ->
-                animationJob?.cancel()
-                removeAllFrameLayers(style)
-                addAllFrameLayers(style)
-            }
-            status.text = "Refreshing radar..."
-        }
-    }
-
-    private fun loadTiles() {
-        status.text = "Loading radar..."
-        mapView.getMapAsync { map ->
-            mapLibreMap = map
-            map.uiSettings.setAllGesturesEnabled(false) // key-driven, no touchscreen anyway
-
-            map.setStyle(Style.Builder().fromUri(BASE_STYLE_URL)) { style ->
-                // Set the camera AFTER the style finishes loading, not before -
-                // the base style has its own default view baked in, and applying
-                // it would silently override an earlier camera assignment,
-                // landing you on a zoomed-out whole-world view.
-                recenter(map)
-                addAllFrameLayers(style)
-            }
-        }
-    }
-
-    /** Adds one raster source+layer per frame offset, stacked, all above the base map. */
-    private fun addAllFrameLayers(style: Style) {
-        isPlaying = false
-        try {
-            for ((i, offset) in FRAME_OFFSETS.withIndex()) {
-                val sourceId = "radar-source-$i"
-                val layerId = "radar-layer-$i"
-                val tileSet = TileSet("2.1.0", tileUrlForOffset(offset))
-                style.addSource(RasterSource(sourceId, tileSet, 256))
-                val layer = RasterLayer(layerId, sourceId)
-                style.addLayer(layer)
-                layer.setProperties(
-                    PropertyFactory.rasterOpacity(if (i == FRAME_OFFSETS.lastIndex) 1f else 0f)
-                )
-                frameSourceIds.add(sourceId)
-                frameLayerIds.add(layerId)
-            }
-            currentFrameIndex = FRAME_OFFSETS.lastIndex
+            val (lat, lon) = Prefs.getLatLon(this) ?: return@refreshLocationIfGpsThenRun
+            mapView.setHome(lat, lon)
+            mapView.recenter(mapView.zoom)
+            // Old frames re-resolve against the current time; base map tiles stay cached.
+            mapView.reloadRadar()
             status.text = "OK=Play/Stop"
-            updateSlider() // start stopped on "Now" - animation begins only once OK is pressed
-        } catch (e: Exception) {
-            status.text = "Couldn't load radar tiles: ${e.message ?: "network error"}"
         }
-    }
-
-    private fun removeAllFrameLayers(style: Style) {
-        for (layerId in frameLayerIds) style.removeLayer(layerId)
-        for (sourceId in frameSourceIds) style.removeSource(sourceId)
-        frameLayerIds.clear()
-        frameSourceIds.clear()
     }
 
     private fun tileUrlForOffset(offset: String): String {
@@ -195,20 +114,15 @@ class RadarActivity : FlipBaseActivity() {
         return "https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-$suffix/{z}/{x}/{y}.png"
     }
 
-    /** Only touches raster-opacity on the frame layers - never the base map. */
     private fun showFrame(index: Int) {
-        val style = mapLibreMap?.style ?: return
-        for (i in frameLayerIds.indices) {
-            val layer = style.getLayer(frameLayerIds[i]) as? RasterLayer ?: continue
-            layer.setProperties(PropertyFactory.rasterOpacity(if (i == index) 1f else 0f))
-        }
+        mapView.frameIndex = index
         updateSlider()
     }
 
     private fun setPlaying(playing: Boolean) {
         isPlaying = playing
         animationJob?.cancel()
-        if (playing && frameLayerIds.isNotEmpty()) {
+        if (playing) {
             animationJob = lifecycleScope.launch {
                 while (isActive) {
                     // Advance BEFORE delaying, not after - playback always starts
@@ -227,7 +141,7 @@ class RadarActivity : FlipBaseActivity() {
 
     /** OK/center: play if stopped; if playing, stop and snap back to the current ("Now") frame. */
     private fun togglePlayback() {
-        if (frameLayerIds.isEmpty()) return
+        if (!Prefs.hasLocation(this)) return
         if (isPlaying) {
             setPlaying(false)
             currentFrameIndex = FRAME_OFFSETS.lastIndex
@@ -239,7 +153,6 @@ class RadarActivity : FlipBaseActivity() {
 
     /** Positions the thumb across the track to reflect currentFrameIndex, instead of a text countdown. */
     private fun updateSlider() {
-        if (frameLayerIds.isEmpty()) return
         if (sliderTrack.width == 0) {
             sliderTrack.post { updateSlider() }
             return
@@ -253,20 +166,12 @@ class RadarActivity : FlipBaseActivity() {
         sliderThumb.translationX = fraction * maxTranslation
     }
 
-    private fun recenter(map: MapLibreMap) {
-        val target = homeLatLng ?: return
-        map.cameraPosition = CameraPosition.Builder().target(target).zoom(DEFAULT_ZOOM).build()
-    }
-
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         // Intercepted ahead of the normal view-focus dispatch (same trick
-        // FlipBaseActivity uses for LEFT/RIGHT) - MapLibre's MapView can end
-        // up holding focus regardless of the focusable="false" XML attrs, in
-        // which case a focused view's own default click handling for
-        // DPAD_CENTER/ENTER swallows the key before it ever reaches
-        // onKeyDown, and OK silently does nothing. Handling it here, before
-        // super.dispatchKeyEvent runs the view hierarchy, also takes it over
-        // from FlipBaseActivity.onKeyDown's app-wide "jump to Daily".
+        // FlipBaseActivity uses for LEFT/RIGHT), so a focused view's own
+        // DPAD_CENTER/ENTER click handling can never swallow OK before it
+        // reaches here. Handling it here also takes it over from
+        // FlipBaseActivity.onKeyDown's app-wide "jump to Daily".
         if (event.action == KeyEvent.ACTION_DOWN &&
             (event.keyCode == KeyEvent.KEYCODE_DPAD_CENTER || event.keyCode == KeyEvent.KEYCODE_ENTER)
         ) {
@@ -277,45 +182,38 @@ class RadarActivity : FlipBaseActivity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        val map = mapLibreMap ?: return super.onKeyDown(keyCode, event)
-        val panPx = (mapView.width * PAN_FRACTION).toFloat()
+        if (!Prefs.hasLocation(this)) return super.onKeyDown(keyCode, event)
 
         when (keyCode) {
-            // Confirmed backward on-device from scrollBy's own documented
-            // mapping, so signs are flipped here from what the docs suggest.
             // D-pad LEFT/RIGHT are excluded from the app-wide screen-shift
             // in FlipBaseActivity while on this screen (see its
             // dispatchKeyEvent), so they land here instead and pan.
             KeyEvent.KEYCODE_DPAD_LEFT -> {
-                map.scrollBy(panPx, 0f)
+                mapView.panBy(-PAN_FRACTION, 0.0)
                 return true
             }
             KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                map.scrollBy(-panPx, 0f)
+                mapView.panBy(PAN_FRACTION, 0.0)
                 return true
             }
             KeyEvent.KEYCODE_DPAD_UP -> {
-                map.scrollBy(0f, panPx)
+                mapView.panBy(0.0, -PAN_FRACTION)
                 return true
             }
             KeyEvent.KEYCODE_DPAD_DOWN -> {
-                map.scrollBy(0f, -panPx)
+                mapView.panBy(0.0, PAN_FRACTION)
                 return true
             }
             KeyEvent.KEYCODE_STAR -> {
-                map.moveCamera(CameraUpdateFactory.zoomBy(-ZOOM_STEP))
+                mapView.zoomBy(-1)
                 return true
             }
             KeyEvent.KEYCODE_POUND -> {
-                map.moveCamera(CameraUpdateFactory.zoomBy(ZOOM_STEP))
+                mapView.zoomBy(1)
                 return true
             }
             KeyEvent.KEYCODE_5 -> {
-                homeLatLng?.let {
-                    map.animateCamera(CameraUpdateFactory.newCameraPosition(
-                        CameraPosition.Builder().target(it).zoom(DEFAULT_ZOOM).build()
-                    ))
-                }
+                mapView.recenter(DEFAULT_ZOOM)
                 return true
             }
         }
@@ -326,23 +224,13 @@ class RadarActivity : FlipBaseActivity() {
         jump(DailyForecastActivity::class.java)
     }
 
-    // --- MapView lifecycle forwarding (required by MapLibre) ---
-    override fun onStart() { super.onStart(); mapView.onStart() }
     override fun onResume() {
         super.onResume()
-        mapView.onResume()
         if (isPlaying) setPlaying(true) // restart the loop if it was cancelled by onPause
     }
+
     override fun onPause() {
-        mapView.onPause()
         animationJob?.cancel() // don't keep ticking while off-screen
         super.onPause()
-    }
-    override fun onStop() { mapView.onStop(); super.onStop() }
-    override fun onDestroy() { super.onDestroy(); mapView.onDestroy() }
-    override fun onLowMemory() { super.onLowMemory(); mapView.onLowMemory() }
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        mapView.onSaveInstanceState(outState)
     }
 }

@@ -4,7 +4,7 @@
     android:layout_height="match_parent"
     android:background="@color/bg_primary">
 
-    <org.maplibre.android.maps.MapView
+    <com.flipweather.app.RadarMapView
         android:id="@+id/mapView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"

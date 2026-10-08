@@ -11,6 +11,18 @@ android {
         targetSdk 28
         versionCode 1
         versionName "1.0"
+
+        // Optional Mapbox token for the radar base map - put
+        // MAPBOX_TOKEN=pk.... in local.properties (not checked in).
+        // Left empty, the radar falls back to CARTO's free dark map.
+        def localProps = new Properties()
+        def localFile = rootProject.file("local.properties")
+        if (localFile.exists()) localFile.withInputStream { localProps.load(it) }
+        buildConfigField "String", "MAPBOX_TOKEN", "\"${localProps.getProperty("MAPBOX_TOKEN", "")}\""
+    }
+
+    buildFeatures {
+        buildConfig true
     }
 
     buildTypes {
@@ -35,5 +47,4 @@ dependencies {
     implementation "androidx.appcompat:appcompat:1.6.1"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"
     implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.6.2"
-    implementation "org.maplibre.gl:android-sdk:11.8.0"
 }

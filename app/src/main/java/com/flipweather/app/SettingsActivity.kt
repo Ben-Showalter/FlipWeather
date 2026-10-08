@@ -11,6 +11,7 @@ class SettingsActivity : FlipBaseActivity() {
     private lateinit var currentLocationText: TextView
     private lateinit var settingsStatus: TextView
     private lateinit var locationHelper: LocationHelper
+    private lateinit var optionsKeyButton: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -25,11 +26,7 @@ class SettingsActivity : FlipBaseActivity() {
         }
 
         // Advanced: which softkey opens Options (see FlipBaseActivity).
-        val optionsKeyButton = findViewById<Button>(R.id.optionsKeyButton)
-        fun showOptionsKey() {
-            optionsKeyButton.text =
-                if (Prefs.isOptionsOnLeft(this)) "Options key: Left softkey" else "Options key: Right softkey"
-        }
+        optionsKeyButton = findViewById(R.id.optionsKeyButton)
         showOptionsKey()
         optionsKeyButton.setOnClickListener {
             Prefs.setOptionsOnLeft(this, !Prefs.isOptionsOnLeft(this))
@@ -51,6 +48,13 @@ class SettingsActivity : FlipBaseActivity() {
             )
         }
     }
+
+    private fun showOptionsKey() {
+        optionsKeyButton.text =
+            if (Prefs.isOptionsOnLeft(this)) "Options key: Left softkey" else "Options key: Right softkey"
+    }
+
+    override fun onOptionsSideChanged() = showOptionsKey()
 
     override fun onResume() {
         super.onResume()

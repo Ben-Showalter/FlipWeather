@@ -23,6 +23,7 @@ object Prefs {
     private const val KEY_LOCATION_LABEL = "location_label"
     private const val KEY_LOCATION_IS_GPS = "location_is_gps"
     private const val KEY_OPTIONS_ON_LEFT = "options_on_left"
+    private const val KEY_MENU_KEY_SEEN = "menu_key_seen"
     private const val KEY_CACHED_CURRENT = "cached_current_json"
     private const val KEY_CACHED_DAILY = "cached_daily_json"
     private const val KEY_CACHED_HOURLY = "cached_hourly_json"
@@ -125,6 +126,13 @@ object Prefs {
 
     fun setOptionsOnLeft(ctx: Context, onLeft: Boolean) {
         prefs(ctx).edit().putBoolean(KEY_OPTIONS_ON_LEFT, onLeft).apply()
+    }
+
+    /** Whether a dedicated Options/Menu key (e.g. Sonim) has ever been pressed - prompts once. */
+    fun hasSeenMenuKey(ctx: Context): Boolean = prefs(ctx).getBoolean(KEY_MENU_KEY_SEEN, false)
+
+    fun setSeenMenuKey(ctx: Context) {
+        prefs(ctx).edit().putBoolean(KEY_MENU_KEY_SEEN, true).apply()
     }
 
     // --- Radar base map look - see RadarMapView.styleFor ---

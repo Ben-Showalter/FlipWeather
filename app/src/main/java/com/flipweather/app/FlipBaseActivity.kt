@@ -1,5 +1,6 @@
 package com.flipweather.app
 
+import android.app.AlertDialog
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
@@ -29,7 +30,9 @@ import androidx.appcompat.app.AppCompatActivity
  *                  Prefs.isOptionsOnLeft); the other softkey does
  *                  nothing, since every screen auto-refreshes.
  *   Menu key     - also Options: the dedicated Options key on Sonim
- *                  phones sends KEYCODE_MENU.
+ *                  phones sends KEYCODE_MENU. The very first press
+ *                  instead asks whether to move the "Options" label to
+ *                  the left (see promptOptionsSide).
  *
  * LEFT/RIGHT are intercepted in dispatchKeyEvent, ahead of the normal
  * view-focus dispatch, so they keep working even when a list row or
@@ -141,7 +144,9 @@ abstract class FlipBaseActivity : AppCompatActivity() {
         // Ahead of AppCompat, which would otherwise take MENU for its own
         // (unused) options menu.
         if (event.keyCode == KeyEvent.KEYCODE_MENU) {
-            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) openOptions()
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                if (Prefs.hasSeenMenuKey(this)) openOptions() else promptOptionsSide()
+            }
             return true
         }
         if (this !is RadarActivity && event.action == KeyEvent.ACTION_DOWN && currentFocus !is EditText) {
@@ -181,6 +186,30 @@ abstract class FlipBaseActivity : AppCompatActivity() {
             else -> startActivity(Intent(this, SettingsActivity::class.java))
         }
     }
+
+    /**
+     * First Options/Menu key press ever: offer to move the "Options" label
+     * (and the Options softkey) to the left. Marked seen up front so it's
+     * only ever asked once; Settings > Advanced can change it later.
+     */
+    private fun promptOptionsSide() {
+        Prefs.setSeenMenuKey(this)
+        AlertDialog.Builder(this)
+            .setTitle("Options key found")
+            .setMessage("Your phone has an Options key. Show the \"Options\" label on the left side of the screen instead?")
+            .setPositiveButton("Yes") { _, _ ->
+                Prefs.setOptionsOnLeft(this, true)
+                placeOptionsLabel()
+                onOptionsSideChanged()
+            }
+            .setNegativeButton("No", null)
+            .create()
+            .apply { setCanceledOnTouchOutside(false) }
+            .show()
+    }
+
+    /** Called after the Options side changes from the first-press prompt. */
+    protected open fun onOptionsSideChanged() {}
 
     /** Moves the footer's "Options" label to whichever end matches the Options softkey. */
     private fun placeOptionsLabel() {

@@ -11,6 +11,7 @@ class SettingsActivity : FlipBaseActivity() {
     private lateinit var currentLocationText: TextView
     private lateinit var settingsStatus: TextView
     private lateinit var locationHelper: LocationHelper
+    private lateinit var optionsKeyButton: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -24,8 +25,16 @@ class SettingsActivity : FlipBaseActivity() {
             startActivity(Intent(this, TownSearchActivity::class.java))
         }
 
-        findViewById<Button>(R.id.radarLegendButton).setOnClickListener {
-            startActivity(Intent(this, RadarOptionsActivity::class.java))
+        // Advanced: which softkey opens Options (see FlipBaseActivity).
+        optionsKeyButton = findViewById(R.id.optionsKeyButton)
+        showOptionsKey()
+        optionsKeyButton.setOnClickListener {
+            Prefs.setOptionsOnLeft(this, !Prefs.isOptionsOnLeft(this))
+            showOptionsKey()
+        }
+
+        findViewById<Button>(R.id.discussionButton).setOnClickListener {
+            startActivity(Intent(this, DiscussionActivity::class.java))
         }
 
         findViewById<Button>(R.id.useGpsButton).setOnClickListener {
@@ -39,6 +48,13 @@ class SettingsActivity : FlipBaseActivity() {
             )
         }
     }
+
+    private fun showOptionsKey() {
+        optionsKeyButton.text =
+            if (Prefs.isOptionsOnLeft(this)) "Options key: Left softkey" else "Options key: Right softkey"
+    }
+
+    override fun onOptionsSideChanged() = showOptionsKey()
 
     override fun onResume() {
         super.onResume()

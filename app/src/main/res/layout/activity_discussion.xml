@@ -8,26 +8,43 @@
     <include layout="@layout/view_update_bar" />
 
     <TextView
-        android:id="@+id/hourlyHeader"
+        android:id="@+id/discussionHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:padding="8dp"
         android:textColor="@color/accent"
         android:textSize="18sp"
         android:textStyle="bold"
-        android:text="Hourly" />
+        android:text="Forecast Discussion" />
 
-    <ListView
-        android:id="@+id/hourlyList"
+    <TextView
+        android:id="@+id/discussionStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingBottom="4dp"
+        android:textColor="@color/text_secondary"
+        android:textSize="13sp" />
+
+    <!-- Focusable so the D-pad Up/Down keys scroll the text. -->
+    <ScrollView
+        android:id="@+id/discussionScroll"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:paddingStart="6dp"
-        android:paddingEnd="6dp"
-        android:divider="@android:color/transparent"
-        android:dividerHeight="8dp"
-        android:listSelector="@drawable/list_row_selector"
-        android:drawSelectorOnTop="true" />
+        android:focusable="true"
+        android:focusableInTouchMode="true">
+
+        <TextView
+            android:id="@+id/discussionText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="8dp"
+            android:fontFamily="monospace"
+            android:textColor="@color/text_primary"
+            android:textSize="12sp" />
+    </ScrollView>
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -41,19 +58,10 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:gravity="center"
+            android:gravity="end"
             android:textColor="@color/footer_text"
             android:textSize="13sp"
             android:text="Back=Return" />
-
-        <TextView
-            android:id="@+id/footerOptions"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="@color/accent"
-            android:textStyle="bold"
-            android:textSize="13sp"
-            android:text="Options" />
 
     </LinearLayout>
 

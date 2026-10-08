@@ -4,12 +4,23 @@
     android:layout_height="match_parent"
     android:background="@color/bg_primary">
 
-    <org.maplibre.android.maps.MapView
+    <com.flipweather.app.RadarMapView
         android:id="@+id/mapView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:focusable="false"
         android:focusableInTouchMode="false" />
+
+    <!-- Shown only while the radar isn't fully loaded / up to date - see RadarActivity. -->
+    <FrameLayout
+        android:id="@+id/radarUpdateBarHolder"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:visibility="gone">
+
+        <include layout="@layout/view_update_bar" />
+    </FrameLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -51,14 +62,6 @@
             android:padding="6dp">
 
             <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="@color/accent"
-                android:textStyle="bold"
-                android:textSize="13sp"
-                android:text="Refresh" />
-
-            <TextView
                 android:id="@+id/radarStatus"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -68,6 +71,7 @@
                 android:textSize="13sp" />
 
             <TextView
+                android:id="@+id/footerOptions"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textColor="@color/accent"

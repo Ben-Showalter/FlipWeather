@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Non-selectable divider row marking where a list switches from
+     NWS data to Open-Meteo data. -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/bannerText"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/banner_bg"
+    android:gravity="center"
+    android:padding="6dp"
+    android:textColor="@color/button_text"
+    android:textSize="13sp"
+    android:textStyle="bold" />

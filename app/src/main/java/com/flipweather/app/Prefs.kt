@@ -22,9 +22,19 @@ object Prefs {
     private const val KEY_OBS_STATION_ID = "obs_station_id"
     private const val KEY_LOCATION_LABEL = "location_label"
     private const val KEY_LOCATION_IS_GPS = "location_is_gps"
-    private const val KEY_LAST_REFRESH_PREFIX = "last_refresh_"
+    private const val KEY_OPTIONS_ON_LEFT = "options_on_left"
+    private const val KEY_MENU_KEY_SEEN = "menu_key_seen"
     private const val KEY_CACHED_CURRENT = "cached_current_json"
     private const val KEY_CACHED_DAILY = "cached_daily_json"
+    private const val KEY_CACHED_HOURLY = "cached_hourly_json"
+    private const val KEY_CACHED_AFD = "cached_afd_json"
+    // When each cache above was written - drives the "Updated h:mm" bar
+    // and auto-refresh (see FlipBaseActivity.maybeAutoRefresh).
+    private const val KEY_CACHED_AT_SUFFIX = "_at"
+    private const val KEY_RADAR_STYLE = "radar_map_style"
+
+    const val RADAR_STYLE_DARK = "dark"
+    const val RADAR_STYLE_LIGHT = "light"
 
     private fun prefs(ctx: Context) =
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
@@ -55,6 +65,8 @@ object Prefs {
             .remove(KEY_OBS_STATION_ID)
             .remove(KEY_CACHED_CURRENT)
             .remove(KEY_CACHED_DAILY)
+            .remove(KEY_CACHED_HOURLY)
+            .remove(KEY_CACHED_AFD)
             .apply()
         OpenMeteoCache.clear()
     }
@@ -108,27 +120,69 @@ object Prefs {
         prefs(ctx).edit().putString(KEY_OBS_STATION_ID, stationId).apply()
     }
 
-    // --- Last manual-refresh timestamp per screen, for RefreshThrottle ---
+    // --- Advanced: which softkey opens Options - see FlipBaseActivity ---
 
-    fun getLastRefresh(ctx: Context, screenKey: String): Long =
-        prefs(ctx).getLong(KEY_LAST_REFRESH_PREFIX + screenKey, 0L)
+    fun isOptionsOnLeft(ctx: Context): Boolean = prefs(ctx).getBoolean(KEY_OPTIONS_ON_LEFT, false)
 
-    fun setLastRefresh(ctx: Context, screenKey: String, timeMs: Long) {
-        prefs(ctx).edit().putLong(KEY_LAST_REFRESH_PREFIX + screenKey, timeMs).apply()
+    fun setOptionsOnLeft(ctx: Context, onLeft: Boolean) {
+        prefs(ctx).edit().putBoolean(KEY_OPTIONS_ON_LEFT, onLeft).apply()
     }
+
+    /** Whether a dedicated Options/Menu key (e.g. Sonim) has ever been pressed - prompts once. */
+    fun hasSeenMenuKey(ctx: Context): Boolean = prefs(ctx).getBoolean(KEY_MENU_KEY_SEEN, false)
+
+    fun setSeenMenuKey(ctx: Context) {
+        prefs(ctx).edit().putBoolean(KEY_MENU_KEY_SEEN, true).apply()
+    }
+
+    // --- Radar base map look - see RadarMapView.styleFor ---
+
+    fun getRadarMapStyle(ctx: Context): String =
+        prefs(ctx).getString(KEY_RADAR_STYLE, RADAR_STYLE_LIGHT) ?: RADAR_STYLE_LIGHT
+
+    /** Flips Dark <-> Light and returns the new value. */
+    fun toggleRadarMapStyle(ctx: Context): String {
+        val next = if (getRadarMapStyle(ctx) == RADAR_STYLE_LIGHT) RADAR_STYLE_DARK else RADAR_STYLE_LIGHT
+        prefs(ctx).edit().putString(KEY_RADAR_STYLE, next).apply()
+        return next
+    }
+
+    /** Button text for the toggle on Settings / Radar Options. */
+    fun radarMapStyleLabel(ctx: Context): String =
+        if (getRadarMapStyle(ctx) == RADAR_STYLE_LIGHT) "Radar Map: Light (topo, trails)" else "Radar Map: Dark"
 
     // --- Cached weather data, so reopening a screen shows the last
     //     successful fetch instantly instead of a blank/loading screen. ---
 
     fun getCachedCurrentJson(ctx: Context): String? = prefs(ctx).getString(KEY_CACHED_CURRENT, null)
-
-    fun setCachedCurrentJson(ctx: Context, json: String) {
-        prefs(ctx).edit().putString(KEY_CACHED_CURRENT, json).apply()
-    }
+    fun getCachedCurrentAt(ctx: Context): Long? = cachedAt(ctx, KEY_CACHED_CURRENT)
+    fun setCachedCurrentJson(ctx: Context, json: String) = putCache(ctx, KEY_CACHED_CURRENT, json)
 
     fun getCachedDailyJson(ctx: Context): String? = prefs(ctx).getString(KEY_CACHED_DAILY, null)
+    fun getCachedDailyAt(ctx: Context): Long? = cachedAt(ctx, KEY_CACHED_DAILY)
+    fun setCachedDailyJson(ctx: Context, json: String) = putCache(ctx, KEY_CACHED_DAILY, json)
 
-    fun setCachedDailyJson(ctx: Context, json: String) {
-        prefs(ctx).edit().putString(KEY_CACHED_DAILY, json).apply()
+    /** Every hour across all forecast days (not just one date) - see HourlyActivity. */
+    fun getCachedHourlyJson(ctx: Context): String? = prefs(ctx).getString(KEY_CACHED_HOURLY, null)
+    fun getCachedHourlyAt(ctx: Context): Long? = cachedAt(ctx, KEY_CACHED_HOURLY)
+    fun setCachedHourlyJson(ctx: Context, json: String) = putCache(ctx, KEY_CACHED_HOURLY, json)
+
+    /** Latest NWS Area Forecast Discussion - see DiscussionActivity. */
+    fun getCachedAfdJson(ctx: Context): String? = prefs(ctx).getString(KEY_CACHED_AFD, null)
+    fun getCachedAfdAt(ctx: Context): Long? = cachedAt(ctx, KEY_CACHED_AFD)
+    fun setCachedAfdJson(ctx: Context, json: String) = putCache(ctx, KEY_CACHED_AFD, json)
+
+    private fun putCache(ctx: Context, key: String, json: String) {
+        prefs(ctx).edit()
+            .putString(key, json)
+            .putLong(key + KEY_CACHED_AT_SUFFIX, System.currentTimeMillis())
+            .apply()
+    }
+
+    /** Null when that cache is missing, or predates fetch-time tracking. */
+    private fun cachedAt(ctx: Context, key: String): Long? {
+        val p = prefs(ctx)
+        if (!p.contains(key)) return null
+        return p.getLong(key + KEY_CACHED_AT_SUFFIX, 0L).takeIf { it > 0L }
     }
 }

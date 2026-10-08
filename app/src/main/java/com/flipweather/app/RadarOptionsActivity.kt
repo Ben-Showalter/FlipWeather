@@ -4,6 +4,7 @@ import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
+import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -33,6 +34,14 @@ class RadarOptionsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_radar_options)
 
+        // Dark/Light base map - RadarActivity picks the change up in onResume.
+        val styleButton = findViewById<Button>(R.id.radarStyleButton)
+        styleButton.text = Prefs.radarMapStyleLabel(this)
+        styleButton.setOnClickListener {
+            Prefs.toggleRadarMapStyle(this)
+            styleButton.text = Prefs.radarMapStyleLabel(this)
+        }
+
         val container = findViewById<LinearLayout>(R.id.colorCodesContainer)
         val inflater = LayoutInflater.from(this)
         for ((hex, label) in colorCodes) {
@@ -41,5 +50,16 @@ class RadarOptionsActivity : AppCompatActivity() {
             row.findViewById<TextView>(R.id.label).text = label
             container.addView(row)
         }
+    }
+
+    // Not a FlipBaseActivity, so hide the phone's softkey bar here too (see SystemBars).
+    override fun onResume() {
+        super.onResume()
+        SystemBars.hideNavigation(this)
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) SystemBars.hideNavigation(this)
     }
 }

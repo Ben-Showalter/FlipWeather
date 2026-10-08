@@ -55,6 +55,11 @@
             android:label="Radar" />
 
         <activity
+            android:name=".DiscussionActivity"
+            android:exported="false"
+            android:label="Forecast Discussion" />
+
+        <activity
             android:name=".RadarOptionsActivity"
             android:exported="false"
             android:label="Radar Options" />

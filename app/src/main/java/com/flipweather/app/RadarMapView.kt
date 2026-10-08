@@ -42,19 +42,29 @@ class RadarMapView @JvmOverloads constructor(
         private const val MAX_LAT = 85.0511
         private const val RETRY_FAILED_MS = 30_000L
 
+        private const val RADAR_HOST = "https://mesonet.agron.iastate.edu/"
+
         // Mapbox's own styling when a token is configured (local.properties
-        // MAPBOX_TOKEN, see app/build.gradle), else CARTO's free dark map.
+        // MAPBOX_TOKEN, see app/build.gradle). Otherwise Esri's Dark Gray
+        // Canvas, which needs no API key (CARTO's tiles came back "API key
+        // required" on-device). Esri splits it into a base and a labels
+        // layer; the labels are drawn above the radar so towns stay readable.
+        // Note Esri's tile URLs are {z}/{y}/{x}, not {z}/{x}/{y}.
         private val BASE_URL: String
+        private val LABELS_URL: String?
         private val ATTRIBUTION: String
 
         init {
             val token = BuildConfig.MAPBOX_TOKEN
             if (token.isNotBlank()) {
                 BASE_URL = "https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/256/{z}/{x}/{y}?access_token=$token"
+                LABELS_URL = null
                 ATTRIBUTION = "© Mapbox © OpenStreetMap · Radar: NWS/IEM"
             } else {
-                BASE_URL = "https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
-                ATTRIBUTION = "© CARTO © OpenStreetMap · Radar: NWS/IEM"
+                val esri = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas"
+                BASE_URL = "$esri/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+                LABELS_URL = "$esri/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+                ATTRIBUTION = "Powered by Esri · Radar: NWS/IEM"
             }
         }
 
@@ -157,7 +167,7 @@ class RadarMapView @JvmOverloads constructor(
     /** Drops cached radar tiles so the time offsets re-resolve against now; the base map stays. */
     fun reloadRadar() {
         for (key in cache.snapshot().keys) {
-            if (!key.startsWith(BASE_URL.substringBefore("{z}"))) cache.remove(key)
+            if (key.startsWith(RADAR_HOST)) cache.remove(key)
         }
         failedAt.clear()
         invalidate()
@@ -199,6 +209,7 @@ class RadarMapView @JvmOverloads constructor(
 
                 drawTile(canvas, BASE_URL, z, wx, ty, tilePaint)
                 if (current != null) drawTile(canvas, current, z, wx, ty, radarPaint)
+                LABELS_URL?.let { drawTile(canvas, it, z, wx, ty, tilePaint) }
             }
         }
 

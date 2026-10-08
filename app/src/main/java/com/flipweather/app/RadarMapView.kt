@@ -38,35 +38,62 @@ class RadarMapView @JvmOverloads constructor(
     companion object {
         private const val TILE = 256
         const val MIN_ZOOM = 3
-        const val MAX_ZOOM = 10
+        // Base maps go this deep (where small roads and trails show up);
+        // radar tiles are only fetched to RADAR_MAX_ZOOM and stretched past it.
+        const val MAX_ZOOM = 16
+        private const val RADAR_MAX_ZOOM = 10
         private const val MAX_LAT = 85.0511
         private const val RETRY_FAILED_MS = 30_000L
 
         private const val RADAR_HOST = "https://mesonet.agron.iastate.edu/"
 
-        // Mapbox's own styling when a token is configured (local.properties
-        // MAPBOX_TOKEN, see app/build.gradle). Otherwise Esri's Dark Gray
-        // Canvas, which needs no API key (CARTO's tiles came back "API key
-        // required" on-device). Esri splits it into a base and a labels
-        // layer; the labels are drawn above the radar so towns stay readable.
-        // Note Esri's tile URLs are {z}/{y}/{x}, not {z}/{x}/{y}.
-        private val BASE_URL: String
-        private val LABELS_URL: String?
-        private val ATTRIBUTION: String
+        // Esri tiles need no API key (CARTO's came back "API key required"
+        // on-device). Note Esri's tile URLs are {z}/{y}/{x}, not {z}/{x}/{y}.
+        private const val ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services"
+        private const val RADAR_CREDIT = "Radar: NWS/IEM"
 
-        init {
-            val token = BuildConfig.MAPBOX_TOKEN
-            if (token.isNotBlank()) {
-                BASE_URL = "https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/256/{z}/{x}/{y}?access_token=$token"
-                LABELS_URL = null
-                ATTRIBUTION = "© Mapbox © OpenStreetMap · Radar: NWS/IEM"
-            } else {
-                val esri = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas"
-                BASE_URL = "$esri/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
-                LABELS_URL = "$esri/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
-                ATTRIBUTION = "Powered by Esri · Radar: NWS/IEM"
-            }
+        // Mapbox's own styles instead, when a token is configured
+        // (local.properties MAPBOX_TOKEN, see app/build.gradle).
+        private val MAPBOX_TOKEN = BuildConfig.MAPBOX_TOKEN
+        private fun mapbox(style: String) =
+            "https://api.mapbox.com/styles/v1/mapbox/$style/tiles/256/{z}/{x}/{y}?access_token=$MAPBOX_TOKEN"
+
+        /**
+         * Esri Dark Gray keeps roads nearly invisible, so its transparent
+         * World Transportation overlay adds them, then the Dark Gray labels
+         * go on top. Both overlays sit above the radar so roads and towns
+         * stay readable through rain.
+         */
+        val DARK: MapStyle = if (MAPBOX_TOKEN.isNotBlank()) {
+            MapStyle(mapbox("dark-v11"), emptyList(), 200, isLight = false, attribution = "© Mapbox © OpenStreetMap · $RADAR_CREDIT")
+        } else {
+            MapStyle(
+                base = "$ESRI/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+                overlays = listOf(
+                    "$ESRI/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}" to 180,
+                    "$ESRI/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}" to 255
+                ),
+                radarAlpha = 200,
+                isLight = false,
+                attribution = "Powered by Esri · $RADAR_CREDIT"
+            )
         }
+
+        /** Topographic: every road, trails, parks and terrain - trails from about zoom 13. */
+        val LIGHT: MapStyle = if (MAPBOX_TOKEN.isNotBlank()) {
+            MapStyle(mapbox("outdoors-v12"), emptyList(), 170, isLight = true, attribution = "© Mapbox © OpenStreetMap · $RADAR_CREDIT")
+        } else {
+            MapStyle(
+                base = "$ESRI/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+                overlays = emptyList(),
+                // A bit lighter so the map's roads and labels show through.
+                radarAlpha = 170,
+                isLight = true,
+                attribution = "Powered by Esri · $RADAR_CREDIT"
+            )
+        }
+
+        fun styleFor(name: String): MapStyle = if (name == Prefs.RADAR_STYLE_LIGHT) LIGHT else DARK
 
         // --- Web-mercator math, in world pixels at zoom z (256 * 2^z wide) ---
 
@@ -101,6 +128,15 @@ class RadarMapView @JvmOverloads constructor(
             invalidate()
         }
 
+    var mapStyle: MapStyle = DARK
+        set(value) {
+            if (field === value) return
+            field = value
+            radarPaint.alpha = value.radarAlpha
+            attributionPaint.color = Color.parseColor(if (value.isLight) "#333333" else "#B0A08E")
+            invalidate()
+        }
+
     var zoom = 7
         private set
     private var centerLat = 39.0
@@ -118,7 +154,8 @@ class RadarMapView @JvmOverloads constructor(
     private var executor: ExecutorService = Executors.newFixedThreadPool(3)
 
     private val tilePaint = Paint(Paint.FILTER_BITMAP_FLAG)
-    private val radarPaint = Paint(Paint.FILTER_BITMAP_FLAG).apply { alpha = 200 }
+    private val radarPaint = Paint(Paint.FILTER_BITMAP_FLAG).apply { alpha = DARK.radarAlpha }
+    private val overlayPaint = Paint(Paint.FILTER_BITMAP_FLAG)
     private val markerFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#FF7A1A") }
     private val markerRing = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE
@@ -185,7 +222,8 @@ class RadarMapView @JvmOverloads constructor(
     }
 
     override fun onDraw(canvas: Canvas) {
-        canvas.drawColor(Color.parseColor("#1A1410"))
+        val style = mapStyle
+        canvas.drawColor(Color.parseColor(if (style.isLight) "#E8E4DC" else "#1A1410"))
         if (width == 0 || height == 0) return
 
         val z = zoom
@@ -207,41 +245,67 @@ class RadarMapView @JvmOverloads constructor(
                 val dt = (ty * TILE - top).toFloat()
                 dstRect.set(dl, dt, dl + TILE, dt + TILE)
 
-                drawTile(canvas, BASE_URL, z, wx, ty, tilePaint)
-                if (current != null) drawTile(canvas, current, z, wx, ty, radarPaint)
-                LABELS_URL?.let { drawTile(canvas, it, z, wx, ty, tilePaint) }
+                drawTile(canvas, style.base, z, wx, ty, tilePaint, MAX_ZOOM)
+                if (current != null) drawTile(canvas, current, z, wx, ty, radarPaint, RADAR_MAX_ZOOM)
+                for ((template, alpha) in style.overlays) {
+                    overlayPaint.alpha = alpha
+                    drawTile(canvas, template, z, wx, ty, overlayPaint, MAX_ZOOM)
+                }
             }
         }
 
-        // Prefetch the other frames for this view after the visible ones are queued.
+        // Prefetch the other frames for this view after the visible ones are
+        // queued - at the radar's own (capped) zoom, so each tile once.
+        val rz = minOf(z, RADAR_MAX_ZOOM)
+        val dz = z - rz
         for (template in frames) {
             if (template == current) continue
-            for (ty in firstY..lastY) for (tx in firstX..lastX) {
-                request(urlFor(template, z, ((tx % n) + n) % n, ty))
+            for (ty in (firstY shr dz)..(lastY shr dz)) {
+                for (tx in Math.floorDiv(firstX, 1 shl dz)..Math.floorDiv(lastX, 1 shl dz)) {
+                    val rn = 1 shl rz
+                    request(urlFor(template, rz, ((tx % rn) + rn) % rn, ty))
+                }
             }
         }
 
         drawMarker(canvas, left, top, z)
-        canvas.drawText(ATTRIBUTION, 4f, height - 4f, attributionPaint)
+        canvas.drawText(style.attribution, 4f, height - 4f, attributionPaint)
     }
 
-    /** Draws one tile into [dstRect]; if it isn't loaded yet, falls back to a scaled-up parent tile. */
-    private fun drawTile(canvas: Canvas, template: String, z: Int, x: Int, y: Int, paint: Paint) {
-        val url = urlFor(template, z, x, y)
+    /**
+     * Draws tile (z, x, y) of [template] into [dstRect]. Past [maxNativeZoom]
+     * the covering tile at that zoom is stretched instead. While a tile is
+     * still loading, the next coarser tile stands in, stretched, if cached.
+     */
+    private fun drawTile(canvas: Canvas, template: String, z: Int, x: Int, y: Int, paint: Paint, maxNativeZoom: Int) {
+        val nz = minOf(z, maxNativeZoom)
+        if (drawFromZoom(canvas, template, z, x, y, nz, paint, fetch = true)) return
+        if (nz > MIN_ZOOM) drawFromZoom(canvas, template, z, x, y, nz - 1, paint, fetch = false)
+    }
+
+    /** Draws the part of the zoom-[az] ancestor tile covering (z, x, y); false if it isn't cached. */
+    private fun drawFromZoom(
+        canvas: Canvas, template: String, z: Int, x: Int, y: Int, az: Int, paint: Paint, fetch: Boolean
+    ): Boolean {
+        val dz = z - az
+        val ax = x shr dz
+        val ay = y shr dz
+        val url = urlFor(template, az, ax, ay)
         val bmp = cache.get(url)
-        if (bmp != null) {
+        if (bmp == null) {
+            if (fetch) request(url)
+            return false
+        }
+        if (dz == 0) {
             canvas.drawBitmap(bmp, null, dstRect, paint)
-            return
+        } else {
+            val sub = (bmp.width shr dz).coerceAtLeast(1)
+            val sx = (x - (ax shl dz)) * sub
+            val sy = (y - (ay shl dz)) * sub
+            srcRect.set(sx, sy, sx + sub, sy + sub)
+            canvas.drawBitmap(bmp, srcRect, dstRect, paint)
         }
-        request(url)
-        if (z > MIN_ZOOM) {
-            val parent = cache.get(urlFor(template, z - 1, x / 2, y / 2)) ?: return
-            val half = TILE / 2
-            val sx = (x % 2) * half
-            val sy = (y % 2) * half
-            srcRect.set(sx, sy, sx + half, sy + half)
-            canvas.drawBitmap(parent, srcRect, dstRect, paint)
-        }
+        return true
     }
 
     private fun drawMarker(canvas: Canvas, left: Double, top: Double, z: Int) {
@@ -299,3 +363,12 @@ class RadarMapView @JvmOverloads constructor(
         null
     }
 }
+
+/** One radar map look: a base layer, then the radar, then [overlays] (template to alpha) above it. */
+class MapStyle(
+    val base: String,
+    val overlays: List<Pair<String, Int>>,
+    val radarAlpha: Int,
+    val isLight: Boolean,
+    val attribution: String
+)

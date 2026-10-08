@@ -28,6 +28,13 @@ class SettingsActivity : FlipBaseActivity() {
             startActivity(Intent(this, RadarOptionsActivity::class.java))
         }
 
+        val radarStyleButton = findViewById<Button>(R.id.radarStyleButton)
+        radarStyleButton.text = Prefs.radarMapStyleLabel(this)
+        radarStyleButton.setOnClickListener {
+            Prefs.toggleRadarMapStyle(this)
+            radarStyleButton.text = Prefs.radarMapStyleLabel(this)
+        }
+
         findViewById<Button>(R.id.discussionButton).setOnClickListener {
             startActivity(Intent(this, DiscussionActivity::class.java))
         }

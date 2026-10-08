@@ -30,6 +30,10 @@ object Prefs {
     // When each cache above was written - drives the "Updated h:mm" bar
     // and auto-refresh (see FlipBaseActivity.maybeAutoRefresh).
     private const val KEY_CACHED_AT_SUFFIX = "_at"
+    private const val KEY_RADAR_STYLE = "radar_map_style"
+
+    const val RADAR_STYLE_DARK = "dark"
+    const val RADAR_STYLE_LIGHT = "light"
 
     private fun prefs(ctx: Context) =
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
@@ -123,6 +127,22 @@ object Prefs {
     fun setLastRefresh(ctx: Context, screenKey: String, timeMs: Long) {
         prefs(ctx).edit().putLong(KEY_LAST_REFRESH_PREFIX + screenKey, timeMs).apply()
     }
+
+    // --- Radar base map look - see RadarMapView.styleFor ---
+
+    fun getRadarMapStyle(ctx: Context): String =
+        prefs(ctx).getString(KEY_RADAR_STYLE, RADAR_STYLE_DARK) ?: RADAR_STYLE_DARK
+
+    /** Flips Dark <-> Light and returns the new value. */
+    fun toggleRadarMapStyle(ctx: Context): String {
+        val next = if (getRadarMapStyle(ctx) == RADAR_STYLE_LIGHT) RADAR_STYLE_DARK else RADAR_STYLE_LIGHT
+        prefs(ctx).edit().putString(KEY_RADAR_STYLE, next).apply()
+        return next
+    }
+
+    /** Button text for the toggle on Settings / Radar Options. */
+    fun radarMapStyleLabel(ctx: Context): String =
+        if (getRadarMapStyle(ctx) == RADAR_STYLE_LIGHT) "Radar Map: Light (topo, trails)" else "Radar Map: Dark"
 
     // --- Cached weather data, so reopening a screen shows the last
     //     successful fetch instantly instead of a blank/loading screen. ---

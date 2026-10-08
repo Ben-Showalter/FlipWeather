@@ -34,7 +34,24 @@
             android:textColor="@color/text_primary"
             android:textSize="14sp"
             android:lineSpacingExtra="4dp"
-            android:text="D-pad Left/Right - pan west/east\nD-pad Up/Down - pan north/south\n* / # - zoom out / in\n5 - re-center on your location\n0 - refresh radar tiles" />
+            android:text="D-pad Left/Right - pan west/east\nD-pad Up/Down - pan north/south\n* / # - zoom out / in (zoom in close for small roads and trails on the Light map)\n5 - re-center on your location\n0 - refresh radar tiles" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:textColor="@color/accent_warm"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:text="Map" />
+
+        <Button
+            android:id="@+id/radarStyleButton"
+            style="@style/FlipButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="Radar Map: Dark" />
 
         <TextView
             android:layout_width="match_parent"

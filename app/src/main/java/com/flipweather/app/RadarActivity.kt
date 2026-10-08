@@ -16,6 +16,8 @@ import kotlinx.coroutines.launch
  * Environmental Mesonet (mesonet.agron.iastate.edu) - free, no key -
  * drawn over a raster base map by [RadarMapView], a plain-Canvas tile
  * view (no OpenGL - MapLibre's GL renderer crashed on the E4610).
+ * The base map is Dark or Light (topographic) - see RadarMapView.DARK /
+ * LIGHT, switched from Options.
  *
  * Animation approach: IEM's tile service accepts a time-offset suffix
  * on the same URL template (e.g. "900913-m15m" = 15 minutes ago,
@@ -29,7 +31,9 @@ import kotlinx.coroutines.launch
  * app-wide screen-shift while this screen is up, so they pan instead:
  *   D-pad left/right - pan west / east
  *   D-pad up/down    - pan north / south
- *   *  / #           - zoom out / in
+ *   *  / #           - zoom out / in (base map to zoom 16, where the
+ *                      Light topo map shows small roads and trails;
+ *                      radar tiles stop at zoom 10 and are stretched)
  *   5                - re-center
  *   OK / center      - play / stop the animation (stopping snaps back
  *                      to the current/"Now" frame). Doesn't auto-play
@@ -226,6 +230,8 @@ class RadarActivity : FlipBaseActivity() {
 
     override fun onResume() {
         super.onResume()
+        // Dark/Light can be switched from Options (right softkey) and back.
+        mapView.mapStyle = RadarMapView.styleFor(Prefs.getRadarMapStyle(this))
         if (isPlaying) setPlaying(true) // restart the loop if it was cancelled by onPause
     }
 

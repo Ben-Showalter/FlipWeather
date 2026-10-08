@@ -4,6 +4,7 @@ import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
+import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -32,6 +33,14 @@ class RadarOptionsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_radar_options)
+
+        // Dark/Light base map - RadarActivity picks the change up in onResume.
+        val styleButton = findViewById<Button>(R.id.radarStyleButton)
+        styleButton.text = Prefs.radarMapStyleLabel(this)
+        styleButton.setOnClickListener {
+            Prefs.toggleRadarMapStyle(this)
+            styleButton.text = Prefs.radarMapStyleLabel(this)
+        }
 
         val container = findViewById<LinearLayout>(R.id.colorCodesContainer)
         val inflater = LayoutInflater.from(this)

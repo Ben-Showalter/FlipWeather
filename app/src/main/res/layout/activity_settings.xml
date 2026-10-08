@@ -89,6 +89,14 @@
             android:layout_marginTop="10dp"
             android:text="Radar Color Legend" />
 
+        <Button
+            android:id="@+id/radarStyleButton"
+            style="@style/FlipButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="Radar Map: Dark" />
+
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"

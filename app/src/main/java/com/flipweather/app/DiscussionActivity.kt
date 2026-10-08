@@ -38,8 +38,7 @@ class DiscussionActivity : FlipBaseActivity() {
     override fun dataFetchedAt(): Long? = Prefs.getCachedAfdAt(this)
 
     override fun startAutoFetch() {
-        RefreshThrottle.markRefreshed(this, "afd")
-        fetchFresh()
+        refreshLocationIfGpsThenRun { fetchFresh() }
     }
 
     override fun onResume() {
@@ -51,16 +50,6 @@ class DiscussionActivity : FlipBaseActivity() {
         showFromCache()
         updateBar?.setUpdatedAt(dataFetchedAt())
         maybeAutoRefresh()
-    }
-
-    override fun onRefreshKey() {
-        if (isFetching) return
-        if (!RefreshThrottle.canRefresh(this, "afd", RefreshThrottle.DAILY_MIN_MS)) {
-            status.text = RefreshThrottle.waitMessage(this, "afd", RefreshThrottle.DAILY_MIN_MS)
-            return
-        }
-        RefreshThrottle.markRefreshed(this, "afd")
-        fetchFresh()
     }
 
     private fun showFromCache() {

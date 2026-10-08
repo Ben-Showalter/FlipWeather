@@ -34,7 +34,7 @@
             android:textColor="@color/text_primary"
             android:textSize="14sp"
             android:lineSpacingExtra="4dp"
-            android:text="D-pad Left/Right - pan west/east\nD-pad Up/Down - pan north/south\n* / # - zoom out / in (zoom in close for small roads and trails on the Light map)\n5 - re-center on your location\n0 - refresh radar tiles" />
+            android:text="D-pad Left/Right - pan west/east\nD-pad Up/Down - pan north/south\n* / # - zoom out / in\n5 - re-center on your location\nZoomed in close, the radar hides so small roads and trails show\nRadar updates itself every 5 minutes" />
 
         <TextView
             android:layout_width="match_parent"

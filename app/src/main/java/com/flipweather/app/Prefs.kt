@@ -22,7 +22,7 @@ object Prefs {
     private const val KEY_OBS_STATION_ID = "obs_station_id"
     private const val KEY_LOCATION_LABEL = "location_label"
     private const val KEY_LOCATION_IS_GPS = "location_is_gps"
-    private const val KEY_LAST_REFRESH_PREFIX = "last_refresh_"
+    private const val KEY_OPTIONS_ON_LEFT = "options_on_left"
     private const val KEY_CACHED_CURRENT = "cached_current_json"
     private const val KEY_CACHED_DAILY = "cached_daily_json"
     private const val KEY_CACHED_HOURLY = "cached_hourly_json"
@@ -119,19 +119,18 @@ object Prefs {
         prefs(ctx).edit().putString(KEY_OBS_STATION_ID, stationId).apply()
     }
 
-    // --- Last manual-refresh timestamp per screen, for RefreshThrottle ---
+    // --- Advanced: which softkey opens Options - see FlipBaseActivity ---
 
-    fun getLastRefresh(ctx: Context, screenKey: String): Long =
-        prefs(ctx).getLong(KEY_LAST_REFRESH_PREFIX + screenKey, 0L)
+    fun isOptionsOnLeft(ctx: Context): Boolean = prefs(ctx).getBoolean(KEY_OPTIONS_ON_LEFT, false)
 
-    fun setLastRefresh(ctx: Context, screenKey: String, timeMs: Long) {
-        prefs(ctx).edit().putLong(KEY_LAST_REFRESH_PREFIX + screenKey, timeMs).apply()
+    fun setOptionsOnLeft(ctx: Context, onLeft: Boolean) {
+        prefs(ctx).edit().putBoolean(KEY_OPTIONS_ON_LEFT, onLeft).apply()
     }
 
     // --- Radar base map look - see RadarMapView.styleFor ---
 
     fun getRadarMapStyle(ctx: Context): String =
-        prefs(ctx).getString(KEY_RADAR_STYLE, RADAR_STYLE_DARK) ?: RADAR_STYLE_DARK
+        prefs(ctx).getString(KEY_RADAR_STYLE, RADAR_STYLE_LIGHT) ?: RADAR_STYLE_LIGHT
 
     /** Flips Dark <-> Light and returns the new value. */
     fun toggleRadarMapStyle(ctx: Context): String {

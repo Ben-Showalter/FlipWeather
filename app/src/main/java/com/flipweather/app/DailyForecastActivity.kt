@@ -53,9 +53,8 @@ class DailyForecastActivity : FlipBaseActivity() {
     override fun dataFetchedAt(): Long? = Prefs.getCachedDailyAt(this)
 
     override fun startAutoFetch() {
-        RefreshThrottle.markRefreshed(this, "daily")
         OpenMeteoCache.clear()
-        fetchFresh()
+        refreshLocationIfGpsThenRun { fetchFresh() }
     }
 
     override fun onResume() {
@@ -65,18 +64,6 @@ class DailyForecastActivity : FlipBaseActivity() {
         showFromCache()
         updateBar?.setUpdatedAt(dataFetchedAt())
         maybeAutoRefresh()
-    }
-
-    override fun onRefreshKey() {
-        if (isFetching) return
-        if (!RefreshThrottle.canRefresh(this, "daily", RefreshThrottle.DAILY_MIN_MS)) {
-            showStatus(RefreshThrottle.waitMessage(this, "daily", RefreshThrottle.DAILY_MIN_MS))
-            return
-        }
-        RefreshThrottle.markRefreshed(this, "daily")
-        OpenMeteoCache.clear()
-        showStatus("Refreshing...")
-        refreshLocationIfGpsThenRun { fetchFresh() }
     }
 
     private fun showFromCache(): Boolean {
@@ -239,7 +226,7 @@ class DailyForecastActivity : FlipBaseActivity() {
         }
     }
 
-    /** e.g. "Today: Rain 0.25\" · Tonight: Snow 1.2\"" - null when no amounts are expected. */
+    /** e.g. "Today: Rain 0.25 inches · Tonight: Snow 1.2 inches" - null when no amounts are expected. */
     private fun amountsLine(row: DailyRow): String? {
         val isToday = row.date == SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date())
         val parts = ArrayList<String>()
@@ -263,16 +250,22 @@ class DailyForecastActivity : FlipBaseActivity() {
 }
 
 /**
- * "Rain 0.25\"", or "Precip 0.10\" Snow 1.2\"" when snow is expected (NWS's
- * precip amount is liquid-equivalent, so it isn't all "rain" then).
+ * "Rain 0.25 inches", or "Precip 0.10 inches Snow 1.2 inches" when snow is
+ * expected (NWS's precip amount is liquid-equivalent, so it isn't all "rain" then).
  */
 fun formatAmounts(a: PrecipAmounts): String {
     val parts = ArrayList<String>()
     val hasSnow = a.snowIn >= 0.05
-    if (a.precipIn >= 0.005) parts.add("${if (hasSnow) "Precip" else "Rain"} ${"%.2f".format(Locale.US, a.precipIn)}\"")
-    if (hasSnow) parts.add("Snow ${"%.1f".format(Locale.US, a.snowIn)}\"")
-    if (a.iceIn >= 0.005) parts.add("Ice ${"%.2f".format(Locale.US, a.iceIn)}\"")
+    if (a.precipIn >= 0.005) parts.add("${if (hasSnow) "Precip" else "Rain"} ${inches(a.precipIn, 2)}")
+    if (hasSnow) parts.add("Snow ${inches(a.snowIn, 1)}")
+    if (a.iceIn >= 0.005) parts.add("Ice ${inches(a.iceIn, 2)}")
     return parts.joinToString(" ")
+}
+
+/** "0.25 inches", or "1 inch" when it rounds to exactly one. */
+private fun inches(value: Double, decimals: Int): String {
+    val text = "%.${decimals}f".format(Locale.US, value)
+    return if (text.toDouble() == 1.0) "1 inch" else "$text inches"
 }
 
 private fun amountsToJson(a: PrecipAmounts) = JSONObject().apply {

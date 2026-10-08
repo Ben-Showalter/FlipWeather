@@ -130,20 +130,13 @@
         android:background="@color/footer_bg"
         android:padding="6dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="@color/accent"
-            android:textStyle="bold"
-            android:textSize="13sp"
-            android:text="Refresh" />
-
         <View
             android:layout_width="0dp"
             android:layout_height="1dp"
             android:layout_weight="1" />
 
         <TextView
+            android:id="@+id/footerOptions"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="@color/accent"

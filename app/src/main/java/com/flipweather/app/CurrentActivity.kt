@@ -36,8 +36,7 @@ class CurrentActivity : FlipBaseActivity() {
     override fun dataFetchedAt(): Long? = Prefs.getCachedCurrentAt(this)
 
     override fun startAutoFetch() {
-        RefreshThrottle.markRefreshed(this, "current")
-        fetchFresh()
+        refreshLocationIfGpsThenRun { fetchFresh() }
     }
 
     override fun onResume() {
@@ -47,17 +46,6 @@ class CurrentActivity : FlipBaseActivity() {
         showFromCache()
         updateBar?.setUpdatedAt(dataFetchedAt())
         maybeAutoRefresh()
-    }
-
-    override fun onRefreshKey() {
-        if (isFetching) return
-        if (!RefreshThrottle.canRefresh(this, "current", RefreshThrottle.CURRENT_MIN_MS)) {
-            statusText.text = RefreshThrottle.waitMessage(this, "current", RefreshThrottle.CURRENT_MIN_MS)
-            return
-        }
-        RefreshThrottle.markRefreshed(this, "current")
-        statusText.text = "Refreshing..."
-        refreshLocationIfGpsThenRun { fetchFresh() }
     }
 
     /** Renders the last cached fetch, if any. Returns false if there's nothing cached. */

@@ -39,9 +39,9 @@ class RadarMapView @JvmOverloads constructor(
         private const val TILE = 256
         const val MIN_ZOOM = 3
         // Base maps go this deep (where small roads and trails show up);
-        // radar tiles are only fetched to RADAR_MAX_ZOOM and stretched past it.
+        // past RADAR_MAX_ZOOM the radar is hidden rather than stretched.
         const val MAX_ZOOM = 16
-        private const val RADAR_MAX_ZOOM = 10
+        const val RADAR_MAX_ZOOM = 10
         private const val MAX_LAT = 85.0511
         private const val RETRY_FAILED_MS = 30_000L
 
@@ -128,7 +128,7 @@ class RadarMapView @JvmOverloads constructor(
             invalidate()
         }
 
-    var mapStyle: MapStyle = DARK
+    var mapStyle: MapStyle = LIGHT
         set(value) {
             if (field === value) return
             field = value
@@ -139,6 +139,18 @@ class RadarMapView @JvmOverloads constructor(
 
     var zoom = 7
         private set
+
+    /** True when zoomed in past the radar's resolution - see RADAR_MAX_ZOOM. */
+    val isRadarHidden: Boolean get() = zoom > RADAR_MAX_ZOOM
+
+    /**
+     * Called (posted, on the main thread) whenever everything needed for the
+     * current view - base map, overlays and every radar frame - flips
+     * between all-loaded and still-loading.
+     */
+    var onLoadStateChanged: ((fullyLoaded: Boolean) -> Unit)? = null
+    private var lastFullyLoaded: Boolean? = null
+    private var missingTiles = 0
     private var centerLat = 39.0
     private var centerLon = -95.0
     private var homeLat: Double? = null
@@ -154,7 +166,7 @@ class RadarMapView @JvmOverloads constructor(
     private var executor: ExecutorService = Executors.newFixedThreadPool(3)
 
     private val tilePaint = Paint(Paint.FILTER_BITMAP_FLAG)
-    private val radarPaint = Paint(Paint.FILTER_BITMAP_FLAG).apply { alpha = DARK.radarAlpha }
+    private val radarPaint = Paint(Paint.FILTER_BITMAP_FLAG).apply { alpha = LIGHT.radarAlpha }
     private val overlayPaint = Paint(Paint.FILTER_BITMAP_FLAG)
     private val markerFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#FF7A1A") }
     private val markerRing = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -163,7 +175,7 @@ class RadarMapView @JvmOverloads constructor(
         strokeWidth = 2f * resources.displayMetrics.density
     }
     private val attributionPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#B0A08E")
+        color = Color.parseColor("#333333")
         textSize = 9f * resources.displayMetrics.scaledDensity
     }
     private val srcRect = Rect()
@@ -203,6 +215,7 @@ class RadarMapView @JvmOverloads constructor(
 
     /** Drops cached radar tiles so the time offsets re-resolve against now; the base map stays. */
     fun reloadRadar() {
+        lastFullyLoaded = null
         for (key in cache.snapshot().keys) {
             if (key.startsWith(RADAR_HOST)) cache.remove(key)
         }
@@ -235,8 +248,9 @@ class RadarMapView @JvmOverloads constructor(
         val firstY = Math.floor(top / TILE).toInt().coerceAtLeast(0)
         val lastY = Math.floor((top + height) / TILE).toInt().coerceAtMost(n - 1)
 
-        val frames = radarUrlTemplates
+        val frames = if (isRadarHidden) emptyList() else radarUrlTemplates
         val current = frames.getOrNull(frameIndex)
+        missingTiles = 0
 
         for (ty in firstY..lastY) {
             for (tx in firstX..lastX) {
@@ -254,18 +268,22 @@ class RadarMapView @JvmOverloads constructor(
             }
         }
 
-        // Prefetch the other frames for this view after the visible ones are
-        // queued - at the radar's own (capped) zoom, so each tile once.
-        val rz = minOf(z, RADAR_MAX_ZOOM)
-        val dz = z - rz
+        // Prefetch the other frames for this view after the visible ones are queued.
         for (template in frames) {
             if (template == current) continue
-            for (ty in (firstY shr dz)..(lastY shr dz)) {
-                for (tx in Math.floorDiv(firstX, 1 shl dz)..Math.floorDiv(lastX, 1 shl dz)) {
-                    val rn = 1 shl rz
-                    request(urlFor(template, rz, ((tx % rn) + rn) % rn, ty))
+            for (ty in firstY..lastY) for (tx in firstX..lastX) {
+                val url = urlFor(template, z, ((tx % n) + n) % n, ty)
+                if (cache.get(url) == null) {
+                    missingTiles++
+                    request(url)
                 }
             }
+        }
+
+        val fullyLoaded = missingTiles == 0
+        if (fullyLoaded != lastFullyLoaded) {
+            lastFullyLoaded = fullyLoaded
+            onLoadStateChanged?.let { cb -> post { cb(fullyLoaded) } }
         }
 
         drawMarker(canvas, left, top, z)
@@ -280,6 +298,7 @@ class RadarMapView @JvmOverloads constructor(
     private fun drawTile(canvas: Canvas, template: String, z: Int, x: Int, y: Int, paint: Paint, maxNativeZoom: Int) {
         val nz = minOf(z, maxNativeZoom)
         if (drawFromZoom(canvas, template, z, x, y, nz, paint, fetch = true)) return
+        missingTiles++
         if (nz > MIN_ZOOM) drawFromZoom(canvas, template, z, x, y, nz - 1, paint, fetch = false)
     }
 

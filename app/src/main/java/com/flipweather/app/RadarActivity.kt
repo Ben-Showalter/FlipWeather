@@ -33,17 +33,21 @@ import kotlinx.coroutines.launch
  *   D-pad up/down    - pan north / south
  *   *  / #           - zoom out / in (base map to zoom 16, where the
  *                      Light topo map shows small roads and trails;
- *                      radar tiles stop at zoom 10 and are stretched)
+ *                      past zoom 10 the radar hides - see
+ *                      RadarMapView.isRadarHidden)
  *   5                - re-center
  *   OK / center      - play / stop the animation (stopping snaps back
  *                      to the current/"Now" frame). Doesn't auto-play
  *                      when the screen first opens - starts stopped on
  *                      "Now" until OK is pressed.
- *   Left softkey     - refresh tiles (rate-limited, see RefreshThrottle;
- *                      also re-polls GPS first if the saved location
- *                      came from GPS - see refreshLocationIfGpsThenRun)
- *   Right softkey    - Options - jumps straight to the Radar Legend
- *                      screen (RadarOptionsActivity), skipping Settings
+ *   Options softkey  - jumps straight to the Radar Options screen
+ *                      (RadarOptionsActivity), skipping Settings
+ *
+ * No refresh key: the radar reloads itself every RADAR_MIN_MS (and
+ * re-polls GPS first if the saved location came from GPS). While the
+ * view isn't fully loaded, a red "Updated" bar with a spinning arrow
+ * shows the time of the last complete load; it disappears once
+ * everything for the current view has arrived.
  *   Back/Clr         - return to Daily (not the default finish-the-app
  *                      behavior a bare hardware Back key would otherwise
  *                      get here, since arriving via the app-wide shift
@@ -69,6 +73,10 @@ class RadarActivity : FlipBaseActivity() {
     private lateinit var sliderTrack: View
     private lateinit var sliderThumb: View
 
+    private lateinit var updateBarHolder: View
+    private var radarLoadedAt: Long? = null // last time the whole view finished loading
+    private var loadStartedAt = System.currentTimeMillis()
+
     private var currentFrameIndex = 0
     private var isPlaying = false
     private var animationJob: Job? = null
@@ -81,6 +89,9 @@ class RadarActivity : FlipBaseActivity() {
         sliderTrack = findViewById(R.id.radarSliderTrack)
         sliderThumb = findViewById(R.id.radarSliderThumb)
         mapView = findViewById(R.id.mapView)
+        updateBarHolder = findViewById(R.id.radarUpdateBarHolder)
+        updateBar = UpdateBar(this, alwaysRed = true)
+        mapView.onLoadStateChanged = { loaded -> onRadarLoadState(loaded) }
 
         if (!Prefs.hasLocation(this)) {
             status.text = "No location set - go to Daily then Settings to set one"
@@ -93,24 +104,47 @@ class RadarActivity : FlipBaseActivity() {
         mapView.radarUrlTemplates = FRAME_OFFSETS.map { tileUrlForOffset(it) }
         currentFrameIndex = FRAME_OFFSETS.lastIndex
         mapView.frameIndex = currentFrameIndex
-        status.text = "OK=Play/Stop"
+        updateStatus()
         updateSlider() // start stopped on "Now" - animation begins only once OK is pressed
     }
 
-    override fun onRefreshKey() {
-        if (!RefreshThrottle.canRefresh(this, "radar", RefreshThrottle.RADAR_MIN_MS)) {
-            status.text = RefreshThrottle.waitMessage(this, "radar", RefreshThrottle.RADAR_MIN_MS)
-            return
-        }
-        RefreshThrottle.markRefreshed(this, "radar")
+    override val autoRefreshIntervalMs: Long? = RefreshThrottle.RADAR_MIN_MS
+
+    // Until the first full load, count from when loading started, so the
+    // auto-refresh doesn't restart a load that's still in progress.
+    override fun dataFetchedAt(): Long? = radarLoadedAt ?: loadStartedAt
+
+    override fun startAutoFetch() {
         refreshLocationIfGpsThenRun {
-            val (lat, lon) = Prefs.getLatLon(this) ?: return@refreshLocationIfGpsThenRun
-            mapView.setHome(lat, lon)
-            mapView.recenter(mapView.zoom)
+            // Moves the location dot only - never yanks the map away from
+            // wherever it has been panned to.
+            Prefs.getLatLon(this)?.let { (lat, lon) -> mapView.setHome(lat, lon) }
+            loadStartedAt = System.currentTimeMillis()
             // Old frames re-resolve against the current time; base map tiles stay cached.
             mapView.reloadRadar()
-            status.text = "OK=Play/Stop"
         }
+    }
+
+    // Redraw every minute so tiles that failed (no signal) get retried.
+    override fun onTick() {
+        mapView.invalidate()
+    }
+
+    private fun onRadarLoadState(fullyLoaded: Boolean) {
+        val bar = updateBar ?: return
+        if (fullyLoaded) {
+            radarLoadedAt = System.currentTimeMillis()
+            bar.setUpdating(false)
+            updateBarHolder.visibility = View.GONE
+        } else {
+            bar.setUpdatedAt(radarLoadedAt)
+            bar.setUpdating(true)
+            updateBarHolder.visibility = View.VISIBLE
+        }
+    }
+
+    private fun updateStatus() {
+        status.text = if (mapView.isRadarHidden) "Zoom out (*) to see radar" else "OK=Play/Stop"
     }
 
     private fun tileUrlForOffset(offset: String): String {
@@ -145,7 +179,7 @@ class RadarActivity : FlipBaseActivity() {
 
     /** OK/center: play if stopped; if playing, stop and snap back to the current ("Now") frame. */
     private fun togglePlayback() {
-        if (!Prefs.hasLocation(this)) return
+        if (!Prefs.hasLocation(this) || mapView.isRadarHidden) return
         if (isPlaying) {
             setPlaying(false)
             currentFrameIndex = FRAME_OFFSETS.lastIndex
@@ -210,18 +244,31 @@ class RadarActivity : FlipBaseActivity() {
             }
             KeyEvent.KEYCODE_STAR -> {
                 mapView.zoomBy(-1)
+                onZoomChanged()
                 return true
             }
             KeyEvent.KEYCODE_POUND -> {
                 mapView.zoomBy(1)
+                onZoomChanged()
                 return true
             }
             KeyEvent.KEYCODE_5 -> {
                 mapView.recenter(DEFAULT_ZOOM)
+                onZoomChanged()
                 return true
             }
         }
         return super.onKeyDown(keyCode, event)
+    }
+
+    /** Zoomed in past the radar: stop the loop (nothing to animate) and say why it's gone. */
+    private fun onZoomChanged() {
+        if (mapView.isRadarHidden && isPlaying) {
+            setPlaying(false)
+            currentFrameIndex = FRAME_OFFSETS.lastIndex
+            showFrame(currentFrameIndex)
+        }
+        updateStatus()
     }
 
     override fun onBackPressed() {

@@ -17,9 +17,10 @@ import java.util.Locale
  * Drives the "Updated h:mm" strip (layout/view_update_bar) at the top of
  * each data screen. The time digits are green while the data is fresh,
  * red once it's more than [STALE_MS] old, and a small arrow spins next
- * to them while a fetch is in flight.
+ * to them while a fetch is in flight. Radar only shows the bar while
+ * it's still loading, always in red ([alwaysRed]).
  */
-class UpdateBar(activity: Activity) {
+class UpdateBar(activity: Activity, private val alwaysRed: Boolean = false) {
 
     companion object {
         const val STALE_MS = 20 * 60 * 1000L
@@ -41,7 +42,7 @@ class UpdateBar(activity: Activity) {
     /** Re-evaluates fresh/stale - called on every auto-refresh tick. */
     fun refreshColor() {
         val at = updatedAt
-        val fresh = at != null && at > 0L && System.currentTimeMillis() - at <= STALE_MS
+        val fresh = !alwaysRed && at != null && at > 0L && System.currentTimeMillis() - at <= STALE_MS
         timeView.setTextColor(if (fresh) freshColor else staleColor)
     }
 

@@ -68,9 +68,8 @@ class HourlyActivity : FlipBaseActivity() {
     override fun dataFetchedAt(): Long? = Prefs.getCachedHourlyAt(this)
 
     override fun startAutoFetch() {
-        RefreshThrottle.markRefreshed(this, "daily")
         OpenMeteoCache.clear()
-        fetchFresh()
+        refreshLocationIfGpsThenRun { fetchFresh() }
     }
 
     override fun onResume() {
@@ -82,17 +81,6 @@ class HourlyActivity : FlipBaseActivity() {
         showFromCache()
         updateBar?.setUpdatedAt(dataFetchedAt())
         maybeAutoRefresh()
-    }
-
-    override fun onRefreshKey() {
-        if (isFetching) return
-        if (!RefreshThrottle.canRefresh(this, "daily", RefreshThrottle.DAILY_MIN_MS)) {
-            showMessage(RefreshThrottle.waitMessage(this, "daily", RefreshThrottle.DAILY_MIN_MS))
-            return
-        }
-        RefreshThrottle.markRefreshed(this, "daily")
-        OpenMeteoCache.clear()
-        refreshLocationIfGpsThenRun { fetchFresh() }
     }
 
     private fun showFromCache() {

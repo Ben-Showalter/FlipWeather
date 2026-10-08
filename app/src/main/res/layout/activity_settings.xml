@@ -112,14 +112,6 @@
             android:layout_marginTop="10dp"
             android:text="Options key: Right softkey" />
 
-        <Button
-            android:id="@+id/systemBarButton"
-            style="@style/FlipButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:text="Phone softkey bar: Hidden" />
-
     </LinearLayout>
     </ScrollView>
 

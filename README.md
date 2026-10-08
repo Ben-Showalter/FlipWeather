@@ -8,4 +8,4 @@ Options (right softkey) → "NWS Forecast Discussion" shows the local NWS office
 
 Options opens with the right softkey, or the dedicated Options key on Sonim phones. Settings > Advanced can move it to the left softkey.
 
-The phone's own white softkey-label bar at the bottom is hidden, since every screen draws its own labels; Settings > Advanced can bring it back.
+The phone's own white softkey-label bar at the bottom is hidden, since every screen draws its own labels.

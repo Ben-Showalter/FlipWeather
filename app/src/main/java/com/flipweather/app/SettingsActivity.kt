@@ -33,19 +33,6 @@ class SettingsActivity : FlipBaseActivity() {
             showOptionsKey()
         }
 
-        // Advanced: hide the phone's own white softkey-label bar (see SystemBars).
-        val systemBarButton = findViewById<Button>(R.id.systemBarButton)
-        fun showSystemBar() {
-            systemBarButton.text =
-                if (Prefs.isHideSystemBar(this)) "Phone softkey bar: Hidden" else "Phone softkey bar: Shown"
-        }
-        showSystemBar()
-        systemBarButton.setOnClickListener {
-            Prefs.setHideSystemBar(this, !Prefs.isHideSystemBar(this))
-            SystemBars.apply(this)
-            showSystemBar()
-        }
-
         findViewById<Button>(R.id.discussionButton).setOnClickListener {
             startActivity(Intent(this, DiscussionActivity::class.java))
         }

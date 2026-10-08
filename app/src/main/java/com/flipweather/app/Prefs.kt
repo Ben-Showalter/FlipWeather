@@ -24,7 +24,6 @@ object Prefs {
     private const val KEY_LOCATION_IS_GPS = "location_is_gps"
     private const val KEY_OPTIONS_ON_LEFT = "options_on_left"
     private const val KEY_MENU_KEY_SEEN = "menu_key_seen"
-    private const val KEY_HIDE_SYSTEM_BAR = "hide_system_bar"
     private const val KEY_CACHED_CURRENT = "cached_current_json"
     private const val KEY_CACHED_DAILY = "cached_daily_json"
     private const val KEY_CACHED_HOURLY = "cached_hourly_json"
@@ -127,13 +126,6 @@ object Prefs {
 
     fun setOptionsOnLeft(ctx: Context, onLeft: Boolean) {
         prefs(ctx).edit().putBoolean(KEY_OPTIONS_ON_LEFT, onLeft).apply()
-    }
-
-    /** Advanced: hide the phone's own softkey-label bar (system nav bar) - see SystemBars. */
-    fun isHideSystemBar(ctx: Context): Boolean = prefs(ctx).getBoolean(KEY_HIDE_SYSTEM_BAR, true)
-
-    fun setHideSystemBar(ctx: Context, hide: Boolean) {
-        prefs(ctx).edit().putBoolean(KEY_HIDE_SYSTEM_BAR, hide).apply()
     }
 
     /** Whether a dedicated Options/Menu key (e.g. Sonim) has ever been pressed - prompts once. */

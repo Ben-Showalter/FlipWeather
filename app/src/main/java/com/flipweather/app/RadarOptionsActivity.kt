@@ -51,4 +51,15 @@ class RadarOptionsActivity : AppCompatActivity() {
             container.addView(row)
         }
     }
+
+    // Not a FlipBaseActivity, so hide the phone's softkey bar here too (see SystemBars).
+    override fun onResume() {
+        super.onResume()
+        SystemBars.apply(this)
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) SystemBars.apply(this)
+    }
 }

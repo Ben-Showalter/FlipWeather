@@ -99,8 +99,15 @@ abstract class FlipBaseActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        SystemBars.apply(this)
         placeOptionsLabel()
         if (autoRefreshIntervalMs != null) tickHandler.postDelayed(tick, 60_000L)
+    }
+
+    // Re-hide the phone's softkey bar after a dialog (e.g. the Options-key prompt) closes.
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) SystemBars.apply(this)
     }
 
     override fun onPause() {

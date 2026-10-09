@@ -25,6 +25,14 @@ android {
         buildConfig true
     }
 
+    lint {
+        // Sideloaded from GitHub Releases, not Google Play: Play's minimum
+        // targetSdk doesn't apply, and targetSdk 28 suits the Android 7-10
+        // flip phones this runs on. Without this, release builds stop in
+        // lintVitalRelease with ExpiredTargetSdkVersion.
+        disable 'ExpiredTargetSdkVersion'
+    }
+
     // Release signing key, kept out of git: a `keystore.properties` at the repo
     // root (see CONTRIBUTING.md, "Publishing a release"). Without it, release
     // builds are left unsigned so fresh checkouts still build.

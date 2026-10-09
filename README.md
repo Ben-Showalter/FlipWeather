@@ -9,3 +9,5 @@ Options (right softkey) → "NWS Forecast Discussion" shows the local NWS office
 Options opens with the right softkey, or the dedicated Options key on Sonim phones. Settings > Advanced can move it to the left softkey.
 
 The phone's own white softkey-label bar at the bottom is hidden, since every screen draws its own labels.
+
+FlipWeather checks this repo's GitHub Releases about once a week and offers to install a newer version (Wi-Fi preferred); Settings > Advanced > Check for Updates checks right away. See CONTRIBUTING.md for publishing a release.

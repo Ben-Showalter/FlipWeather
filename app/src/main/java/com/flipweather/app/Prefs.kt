@@ -24,6 +24,7 @@ object Prefs {
     private const val KEY_LOCATION_IS_GPS = "location_is_gps"
     private const val KEY_OPTIONS_ON_LEFT = "options_on_left"
     private const val KEY_MENU_KEY_SEEN = "menu_key_seen"
+    private const val KEY_LAST_UPDATE_CHECK = "last_update_check_at"
     private const val KEY_CACHED_CURRENT = "cached_current_json"
     private const val KEY_CACHED_DAILY = "cached_daily_json"
     private const val KEY_CACHED_HOURLY = "cached_hourly_json"
@@ -133,6 +134,15 @@ object Prefs {
 
     fun setSeenMenuKey(ctx: Context) {
         prefs(ctx).edit().putBoolean(KEY_MENU_KEY_SEEN, true).apply()
+    }
+
+    // --- In-app updates - see UpdateChecker / FlipBaseActivity.maybeCheckForUpdate ---
+
+    /** When an automatic update check last started (epoch ms, 0 = never). */
+    fun getLastUpdateCheckAt(ctx: Context): Long = prefs(ctx).getLong(KEY_LAST_UPDATE_CHECK, 0L)
+
+    fun setLastUpdateCheckAt(ctx: Context, time: Long) {
+        prefs(ctx).edit().putLong(KEY_LAST_UPDATE_CHECK, time).apply()
     }
 
     // --- Radar base map look - see RadarMapView.styleFor ---

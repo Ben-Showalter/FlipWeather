@@ -25,8 +25,29 @@ android {
         buildConfig true
     }
 
+    // Release signing key, kept out of git: a `keystore.properties` at the repo
+    // root (see CONTRIBUTING.md, "Publishing a release"). Without it, release
+    // builds are left unsigned so fresh checkouts still build.
+    def keystoreFile = rootProject.file("keystore.properties")
+    def keystoreProps = new Properties()
+    if (keystoreFile.exists()) keystoreFile.withInputStream { keystoreProps.load(it) }
+
+    signingConfigs {
+        if (keystoreFile.exists()) {
+            release {
+                storeFile rootProject.file(keystoreProps.getProperty("storeFile"))
+                storePassword keystoreProps.getProperty("storePassword")
+                keyAlias keystoreProps.getProperty("keyAlias")
+                keyPassword keystoreProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            // Every published release must be signed with this same key, and
+            // carry a higher versionCode, or phones refuse the in-app update.
+            if (keystoreFile.exists()) signingConfig signingConfigs.release
             minifyEnabled false
         }
     }

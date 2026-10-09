@@ -5,6 +5,8 @@ import android.os.Bundle
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
 class SettingsActivity : FlipBaseActivity() {
 
@@ -33,6 +35,11 @@ class SettingsActivity : FlipBaseActivity() {
             showOptionsKey()
         }
 
+        // Advanced: manual counterpart to the weekly automatic check (FlipBaseActivity).
+        val checkUpdatesButton = findViewById<Button>(R.id.checkUpdatesButton)
+        checkUpdatesButton.text = "Check for Updates (installed v${UpdateChecker.installedVersion(this)})"
+        checkUpdatesButton.setOnClickListener { checkForUpdate() }
+
         findViewById<Button>(R.id.discussionButton).setOnClickListener {
             startActivity(Intent(this, DiscussionActivity::class.java))
         }
@@ -46,6 +53,25 @@ class SettingsActivity : FlipBaseActivity() {
                 },
                 onError = { settingsStatus.text = "Could not get GPS fix - try Search for a Town instead" }
             )
+        }
+    }
+
+    private fun checkForUpdate() {
+        Toast.makeText(this, "Checking for updates…", Toast.LENGTH_SHORT).show()
+        lifecycleScope.launch {
+            val result = try {
+                Result.success(UpdateChecker.fetchLatest(this@SettingsActivity))
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+            val release = result.getOrNull()
+            when {
+                result.isFailure ->
+                    Toast.makeText(this@SettingsActivity, "Couldn't check for updates", Toast.LENGTH_LONG).show()
+                release == null ->
+                    Toast.makeText(this@SettingsActivity, "FlipWeather is up to date", Toast.LENGTH_SHORT).show()
+                else -> showUpdatePrompt(release)
+            }
         }
     }
 

@@ -9,6 +9,9 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 
 /**
  * App-wide keypad scheme, active on every screen:
@@ -56,6 +59,9 @@ import androidx.appcompat.app.AppCompatActivity
  * fetches in the background whenever that cache is older than
  * [autoRefreshIntervalMs] - checked again every minute while the
  * screen stays open. Progress and freshness show in [updateBar].
+ *
+ * The main screens (Current, Daily, Radar) also check GitHub for a newer
+ * FlipWeather release about once a week - see [maybeCheckForUpdate].
  */
 abstract class FlipBaseActivity : AppCompatActivity() {
 
@@ -101,7 +107,50 @@ abstract class FlipBaseActivity : AppCompatActivity() {
         super.onResume()
         SystemBars.hideNavigation(this)
         placeOptionsLabel()
+        isResumedNow = true
         if (autoRefreshIntervalMs != null) tickHandler.postDelayed(tick, 60_000L)
+        if (MAIN_SCREENS.any { it.isInstance(this) }) maybeCheckForUpdate()
+    }
+
+    private var isResumedNow = false
+    private var optionsPrompt: AlertDialog? = null
+
+    /**
+     * Checks GitHub for a newer release about once a week (the main screens
+     * resume constantly, so no background scheduler is needed) and asks
+     * whether to install it. Settings > Advanced has a manual check too.
+     * Same scheme as Flip Launcher - see UpdateChecker.
+     */
+    private fun maybeCheckForUpdate() {
+        val now = System.currentTimeMillis()
+        val last = Prefs.getLastUpdateCheckAt(this)
+        // A last-check time in the future means the clock was turned back; check anyway.
+        if (now - last in 0 until UpdateChecker.CHECK_INTERVAL_MS) return
+        if (optionsPrompt?.isShowing == true) return // let that prompt finish; next resume checks
+        // Recorded up front so resumes while the check is in flight don't start another.
+        Prefs.setLastUpdateCheckAt(this, now)
+        lifecycleScope.launch {
+            val release = try {
+                UpdateChecker.fetchLatest(this@FlipBaseActivity)
+            } catch (e: CancellationException) {
+                // Screen left mid-check (e.g. a sideways jump): check on the next resume.
+                Prefs.setLastUpdateCheckAt(this@FlipBaseActivity, 0L)
+                throw e
+            } catch (e: Exception) {
+                // Offline or rate-limited: try again in a day rather than a week.
+                Prefs.setLastUpdateCheckAt(
+                    this@FlipBaseActivity,
+                    now - UpdateChecker.CHECK_INTERVAL_MS + UpdateChecker.RETRY_AFTER_FAILURE_MS
+                )
+                null
+            } ?: return@launch
+            if (isResumedNow && optionsPrompt?.isShowing != true) {
+                showUpdatePrompt(release)
+            } else {
+                // Screen was left (or another prompt came up) mid-check; ask on the next resume.
+                Prefs.setLastUpdateCheckAt(this@FlipBaseActivity, 0L)
+            }
+        }
     }
 
     // Re-hide the phone's softkey bar after a dialog (e.g. the Options-key prompt) closes.
@@ -111,6 +160,7 @@ abstract class FlipBaseActivity : AppCompatActivity() {
     }
 
     override fun onPause() {
+        isResumedNow = false
         tickHandler.removeCallbacks(tick)
         super.onPause()
     }
@@ -201,7 +251,7 @@ abstract class FlipBaseActivity : AppCompatActivity() {
      */
     private fun promptOptionsSide() {
         Prefs.setSeenMenuKey(this)
-        AlertDialog.Builder(this)
+        optionsPrompt = AlertDialog.Builder(this)
             .setTitle("Options key found")
             .setMessage("Your phone has an Options key. Show the \"Options\" label on the left side of the screen instead?")
             .setPositiveButton("Yes") { _, _ ->
@@ -212,7 +262,7 @@ abstract class FlipBaseActivity : AppCompatActivity() {
             .setNegativeButton("No", null)
             .create()
             .apply { setCanceledOnTouchOutside(false) }
-            .show()
+        optionsPrompt?.show()
     }
 
     /** Called after the Options side changes from the first-press prompt. */
